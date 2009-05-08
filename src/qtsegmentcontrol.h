@@ -34,11 +34,11 @@ public:
     void setSelectionBehavior(SelectionBehavior behavior);
     SelectionBehavior selectionBehavior() const;
 
-    void setSegmentText(const QString &text);
-    QString segmentText() const;
+    void setSegmentText(int index, const QString &text);
+    QString segmentText(int index) const;
 
-    void setSegmentIcon(const QIcon &icon);
-    QIcon segmentIcon() const;
+    void setSegmentIcon(int index, const QIcon &icon);
+    QIcon segmentIcon(int index) const;
 
     void setIconSize(const QSize &size);
     QSize iconSize() const;
@@ -53,6 +53,15 @@ public:
     QString segmentWhatsThis(int segment) const;
 
     virtual QSize segmentSizeHint(int segment, const QSize &size) const;
+
+protected:
+    void paintEvent(QPaintEvent *pe);
+    void mousePressEvent(QMouseEvent *event);
+    void mouseMoveEvent(QMouseEvent *event);
+    void mouseReleaseEvent(QMouseEvent *event);
+    void keyPressEvent(QKeyEvent *event);
+    void keyReleaseEvent(QKeyEvent *event);
+    bool event(QEvent *event);
 
 Q_SIGNALS:
     void segmentSelected(int selected);
