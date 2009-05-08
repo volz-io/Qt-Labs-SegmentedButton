@@ -4,6 +4,7 @@
 
 #include <QtGui/QWidget>
 class QMenu;
+class QStyleOption;
 
 class QtSegmentControlPrivate;
 
@@ -56,6 +57,7 @@ public:
     QSize sizeHint() const;
 
 protected:
+    void initStyleOption(int segment, QStyleOption *option);
     void paintEvent(QPaintEvent *pe);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);

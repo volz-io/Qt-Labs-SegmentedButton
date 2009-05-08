@@ -1,8 +1,13 @@
 #include <QtGui/QIcon>
 #include <QtGui/QMenu>
 #include <QtGui/QPainter>
+#include <QtGui/QStyleOption>
 
 #include "qtsegmentcontrol.h"
+
+#ifdef Q_WS_MAC
+#include <Carbon/Carbon.h>
+#endif
 
 struct SegmentInfo {
     SegmentInfo() : menu(0), selected(false), enabled(true) {}
@@ -28,6 +33,36 @@ public:
     int lastSelected;
     inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
 };
+
+class QtStyleOptionSegmentControlSegment : public QStyleOption
+{
+public:
+    enum StyleOptionType { Type = 100000  };
+    enum StyleOptionVersion { Version = 1 };
+
+    enum SegmentPosition { Beginning, Middle, End, OnlyOneSegment };
+    enum SelectedPosition { NotAdjacent, NextIsSelected, PreviousIsSelected };
+
+    QString text;
+    QIcon icon;
+    QSize iconSize;
+    SegmentPosition position;
+    SelectedPosition selectedPosition;
+
+    QtStyleOptionSegmentControlSegment()
+       : position(OnlyOneSegment), selectedPosition(NotAdjacent) { }
+    QtStyleOptionSegmentControlSegment(const QtStyleOptionSegmentControlSegment &other)
+        : QStyleOption(Version, Type) { *this = other; }
+
+protected:
+    QtStyleOptionSegmentControlSegment(int version);
+};
+
+static void drawSegmentControlSegment(const QStyleOption *option,
+                                      QPainter *painter, QWidget *widget = 0)
+{
+    painter->fillRect(option->rect, Qt::blue);
+}
 
 QtSegmentControl::QtSegmentControl(QWidget *parent)
     : QWidget(parent), d(new QtSegmentControlPrivate(this))
@@ -204,7 +239,12 @@ QSize QtSegmentControl::sizeHint() const
 void QtSegmentControl::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
-    p.fillRect(rect(), Qt::blue);
+    QtStyleOptionSegmentControlSegment segmentInfo;
+    const int segmentCount = d->segments.count();
+    for (int i = 0; i < segmentCount; ++i) {
+        initStyleOption(i, &segmentInfo);
+        drawSegmentControlSegment(&segmentInfo, &p, this);
+    }
 }
 
 void QtSegmentControl::mousePressEvent(QMouseEvent *event)
@@ -237,3 +277,35 @@ bool QtSegmentControl::event(QEvent *event)
     return QWidget::event(event);
 }
 
+void QtSegmentControl::initStyleOption(int segment, QStyleOption *option)
+{
+    if (!option || !d->indexOK(segment))
+        return;
+    option->initFrom(this);
+    if (QtStyleOptionSegmentControlSegment *sgi = qstyleoption_cast<QtStyleOptionSegmentControlSegment *>(option)) {
+        sgi->iconSize = d->iconSize;
+        const SegmentInfo &segmentInfo = d->segments[segment];
+        if (d->segments.count() == 1) {
+            sgi->position = QtStyleOptionSegmentControlSegment::OnlyOneSegment;
+        } else if (segment == 0) {
+            sgi->position = QtStyleOptionSegmentControlSegment::Beginning;
+        } else if (segment == d->segments.count() - 1) {
+            sgi->position = QtStyleOptionSegmentControlSegment::End;
+        } else {
+            sgi->position = QtStyleOptionSegmentControlSegment::Middle;
+        }
+        if (segmentInfo.selected) {
+            sgi->state |= QStyle::State_Selected;
+        } else {
+            if (d->indexOK(segment - 1) && d->segments[segment - 1].selected) {
+                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::PreviousIsSelected;
+            } else if (d->indexOK(segment + 1) && d->segments[segment + 1].selected) {
+                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NextIsSelected;
+            } else {
+                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NotAdjacent;
+            }
+        }
+        sgi->text = segmentInfo.text;
+        sgi->icon = segmentInfo.icon;
+    }
+}
