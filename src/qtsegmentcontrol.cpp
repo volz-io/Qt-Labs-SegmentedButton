@@ -8,7 +8,7 @@
 #ifdef Q_WS_MAC
 #include <Carbon/Carbon.h>
 
-ThemeDrawState getDrawState(QStyle::State flags)
+static ThemeDrawState getDrawState(QStyle::State flags)
 {
     ThemeDrawState tds = kThemeStateActive;
     if (flags & QStyle::State_Sunken) {
@@ -82,8 +82,10 @@ static void drawSegmentControlSegment(const QStyleOption *option,
 #ifndef Q_WS_MAC
     painter->fillRect(option->rect, Qt::blue);
 #else
+    // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
-            = qstyleoption_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+            = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+        qDebug("Segment pos %d", segment->position);
         CGContextRef cg = qt_mac_cg_context(painter->device());
         HIThemeSegmentDrawInfo sgi;
         sgi.version = 0;
@@ -91,10 +93,10 @@ static void drawSegmentControlSegment(const QStyleOption *option,
         sgi.value = (segment->state & QStyle::State_Selected) ? kThemeButtonOn : kThemeButtonOff;
         sgi.size = kHIThemeSegmentSizeNormal;
         sgi.kind = kHIThemeSegmentKindNormal;
-        sgi.position = sgi.position;
+        sgi.position = segment->position;
         sgi.adornment = kHIThemeSegmentAdornmentNone;
         HIRect hirect = CGRectMake(segment->rect.x(), segment->rect.y(),
-                                      segment->rect.width(), segment->rect.height());
+                                   segment->rect.width(), segment->rect.height());
         HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
         CFRelease(cg);
     }
@@ -319,7 +321,8 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option)
     if (!option || !d->indexOK(segment))
         return;
     option->initFrom(this);
-    if (QtStyleOptionSegmentControlSegment *sgi = qstyleoption_cast<QtStyleOptionSegmentControlSegment *>(option)) {
+    // ## Change to qstyleoption_cast
+    if (QtStyleOptionSegmentControlSegment *sgi = static_cast<QtStyleOptionSegmentControlSegment *>(option)) {
         sgi->iconSize = d->iconSize;
         const SegmentInfo &segmentInfo = d->segments[segment];
         if (d->segments.count() == 1) {
