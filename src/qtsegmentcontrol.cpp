@@ -7,6 +7,24 @@
 
 #ifdef Q_WS_MAC
 #include <Carbon/Carbon.h>
+
+ThemeDrawState getDrawState(QStyle::State flags)
+{
+    ThemeDrawState tds = kThemeStateActive;
+    if (flags & QStyle::State_Sunken) {
+        tds = kThemeStatePressed;
+    } else if (flags & QStyle::State_Active) {
+        if (!(flags & QStyle::State_Enabled))
+            tds = kThemeStateUnavailable;
+    } else {
+        if (flags & QStyle::State_Enabled)
+            tds = kThemeStateInactive;
+        else
+            tds = kThemeStateUnavailableInactive;
+    }
+    return tds;
+}
+
 #endif
 
 struct SegmentInfo {
@@ -61,7 +79,26 @@ protected:
 static void drawSegmentControlSegment(const QStyleOption *option,
                                       QPainter *painter, QWidget *widget = 0)
 {
+#ifndef Q_WS_MAC
     painter->fillRect(option->rect, Qt::blue);
+#else
+    if (const QtStyleOptionSegmentControlSegment *segment
+            = qstyleoption_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+        CGContextRef cg = qt_mac_cg_context(painter->device());
+        HIThemeSegmentDrawInfo sgi;
+        sgi.version = 0;
+        sgi.state = getDrawState(segment->state);
+        sgi.value = (segment->state & QStyle::State_Selected) ? kThemeButtonOn : kThemeButtonOff;
+        sgi.size = kHIThemeSegmentSizeNormal;
+        sgi.kind = kHIThemeSegmentKindNormal;
+        sgi.position = sgi.position;
+        sgi.adornment = kHIThemeSegmentAdornmentNone;
+        HIRect hirect = CGRectMake(segment->rect.x(), segment->rect.y(),
+                                      segment->rect.width(), segment->rect.height());
+        HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
+        CFRelease(cg);
+    }
+#endif
 }
 
 QtSegmentControl::QtSegmentControl(QWidget *parent)
