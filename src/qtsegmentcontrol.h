@@ -7,22 +7,22 @@ class QMenu;
 
 class QtSegmentControlPrivate;
 
-class QtSegmentedControl
+class QtSegmentControl : public QWidget
 {
     Q_OBJECT
     Q_ENUMS(SelectionBehavior)
-    Q_PROPERTY(SelectionBehavior READ selectionBehavior WRITE setSelectionBehavior)
-    Q_PREPERTY(selectedSection READ selectedSection NOTIFY sectionSelected)
-    Q_PREPERTY(int count READ count WRITE setCount)
-    Q_PREPERTY(QSize iconSize READ iconSize WRITE setIconSize)
+    Q_PROPERTY(SelectionBehavior selectionBehavior READ selectionBehavior WRITE setSelectionBehavior)
+    Q_PROPERTY(int selectedSegment READ selectedSegment NOTIFY segmentSelected)
+    Q_PROPERTY(int count READ count WRITE setCount)
+    Q_PROPERTY(QSize iconSize READ iconSize WRITE setIconSize)
 public:
-    enum SelectionBehavior { SelectOne, SelectAll, SelectNone }
+    enum SelectionBehavior { SelectOne, SelectAll, SelectNone };
 
-    QtSegmentedControl(QWidget *parent = 0);
-    ~QtSegmentedControl();
+    QtSegmentControl(QWidget *parent = 0);
+    ~QtSegmentControl();
 
     int count() const;
-    void setCount();
+    void setCount(int newConut);
 
     bool isSegmentSelected(int index) const;
     int selectedSegment() const;
@@ -53,6 +53,7 @@ public:
     QString segmentWhatsThis(int segment) const;
 
     virtual QSize segmentSizeHint(int segment, const QSize &size) const;
+    QSize sizeHint() const;
 
 protected:
     void paintEvent(QPaintEvent *pe);

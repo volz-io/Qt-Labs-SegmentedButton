@@ -1,7 +1,11 @@
+#include <QtGui/QIcon>
+#include <QtGui/QMenu>
+#include <QtGui/QPainter>
+
 #include "qtsegmentcontrol.h"
 
 struct SegmentInfo {
-    SegmentInfo() : menu(0), selected(false) {}
+    SegmentInfo() : menu(0), selected(false), enabled(true) {}
     ~SegmentInfo() { delete menu; }
     QString text;
     QString toolTip;
@@ -9,6 +13,7 @@ struct SegmentInfo {
     QIcon icon;
     QMenu *menu;
     bool selected;
+    bool enabled;
 };
 
 class QtSegmentControlPrivate {
@@ -25,7 +30,7 @@ public:
 };
 
 QtSegmentControl::QtSegmentControl(QWidget *parent)
-    : QWidget(parent), d(new QtSegmentControl(this))
+    : QWidget(parent), d(new QtSegmentControlPrivate(this))
 {
 }
 
@@ -36,20 +41,20 @@ QtSegmentControl::~QtSegmentControl()
 
 int QtSegmentControl::count() const
 {
-    return segments.count();
+    return d->segments.count();
 }
 
 void QtSegmentControl::setCount(int newCount)
 {
-    segments.resize(newCount);
+    d->segments.resize(newCount);
 }
 
 bool QtSegmentControl::isSegmentSelected(int index) const
 {
-    if (!indexOK(index))
+    if (!d->indexOK(index))
         return false;
 
-    return segments.at(index).selected;
+    return d->segments.at(index).selected;
 }
 
 int QtSegmentControl::selectedSegment() const
@@ -59,11 +64,11 @@ int QtSegmentControl::selectedSegment() const
 
 void QtSegmentControl::setSegmentSelected(int index, bool selected)
 {
-    if (!indexOK(index))
+    if (!d->indexOK(index))
         return;
 
-    if (segmentInfo[index].selected != selected) {
-        segmentInfo[index].selected = selected;
+    if (d->segments[index].selected != selected) {
+        d->segments[index].selected = selected;
         update(); // ### segment rect;
         emit segmentSelected(index);
     }
@@ -71,11 +76,11 @@ void QtSegmentControl::setSegmentSelected(int index, bool selected)
 
 void QtSegmentControl::setSegmentEnabled(int index, bool enabled)
 {
-    if (!indexOK(index))
+    if (!d->indexOK(index))
         return;
 
-    if (segmentInfo[index].enabled != enabled) {
-        segmentInfo[index].enabled = enabled;
+    if (d->segments[index].enabled != enabled) {
+        d->segments[index].enabled = enabled;
         update(); // ### segment rect
     }
 }
@@ -96,34 +101,32 @@ QtSegmentControl::SelectionBehavior QtSegmentControl::selectionBehavior() const
 
 void QtSegmentControl::setSegmentText(int index, const QString &text)
 {
-    if (!indexOK(index))
+    if (!d->indexOK(index))
         return;
 
-    if (d->segmentInfo[index].text != text) {
-        d->segmentInfo[index].text = text;
+    if (d->segments[index].text != text) {
+        d->segments[index].text = text;
         update(); // ### segment rect;
     }
 }
 
 QString QtSegmentControl::segmentText(int index) const
 {
-    indexOK(index) ? d->segmentInfo.at(index).text : QString();
+    return d->indexOK(index) ? d->segments.at(index).text : QString();
 }
 
 void QtSegmentControl::setSegmentIcon(int index, const QIcon &icon)
 {
-    if (!indexOK(index))
+    if (!d->indexOK(index))
         return;
 
-    if (d->segmentInfo[index].icon != icon) {
-        d->segmentInfo[index].icon = icon;
-        update(); // ## segment rect;
-    }
+    d->segments[index].icon = icon;
+    update(); // ## segment rect;
 }
 
-QIcon QtSegmentControl::segmentIcon(int index)
+QIcon QtSegmentControl::segmentIcon(int index) const
 {
-    indexOK(index) ? d->segmentInfo.at(index).icon : QIcon();
+    return d->indexOK(index) ? d->segments.at(index).icon : QIcon();
 }
 
 void QtSegmentControl::setIconSize(const QSize &size)
@@ -142,12 +145,12 @@ QSize QtSegmentControl::iconSize() const
 
 void QtSegmentControl::setSegmentMenu(int index, QMenu *menu)
 {
-    if (!indexOK(index))
+    if (!d->indexOK(index))
         return;
 
-    if (menu != d->segmentInfo[index].menu) {
-        QMenu *oldMenu = d->segmentInfo[index].menu;
-        d->segmentInfo[index].menu = menu;
+    if (menu != d->segments[index].menu) {
+        QMenu *oldMenu = d->segments[index].menu;
+        d->segments[index].menu = menu;
         delete oldMenu;
         update(); // ### segment rect
     }
@@ -155,20 +158,20 @@ void QtSegmentControl::setSegmentMenu(int index, QMenu *menu)
 
 QMenu *QtSegmentControl::segmentMenu(int index) const
 {
-    indexOK(index) ? d->segmentInfo.at(index).menu : 0;
+    return d->indexOK(index) ? d->segments.at(index).menu : 0;
 }
 
 void QtSegmentControl::setSegmentToolTip(int segment, const QString &tipText)
 {
-    if (!indexOK(index))
+    if (!d->indexOK(segment))
         return;
 
-    d->segmentInfo[segment].toolTipText = tipText;
+    d->segments[segment].toolTip = tipText;
 }
 
-QString QtSegmentControl::toolTipText(int segment) const
+QString QtSegmentControl::segmentToolTip(int segment) const
 {
-    return d->indexOK(segment) ? d->segmentInfo.at(segment).toolTipText : QString();
+    return d->indexOK(segment) ? d->segments.at(segment).toolTip : QString();
 }
 
 void QtSegmentControl::setSegmentWhatsThis(int segment, const QString &whatsThisText)
@@ -176,12 +179,12 @@ void QtSegmentControl::setSegmentWhatsThis(int segment, const QString &whatsThis
     if (!d->indexOK(segment))
         return;
 
-    d->segmentInfo[segment].whatsThisText = whatsThisText;
+    d->segments[segment].whatsThis = whatsThisText;
 }
 
 QString QtSegmentControl::segmentWhatsThis(int segment) const
 {
-    return d->indexOK(segment) ? d->segmentInfo.at(segment).whatsThisText : QString();
+    return d->indexOK(segment) ? d->segments.at(segment).whatsThis : QString();
 }
 
 QSize QtSegmentControl::segmentSizeHint(int segment, const QSize &size) const
@@ -189,6 +192,14 @@ QSize QtSegmentControl::segmentSizeHint(int segment, const QSize &size) const
     return QSize(20, 20);
 }
 
+QSize QtSegmentControl::sizeHint() const
+{
+    QSize size;
+    for (int i = 0; i < d->segments.count(); ++i) {
+        size += segmentSizeHint(i, size);
+    }
+    return size;
+}
 
 void QtSegmentControl::paintEvent(QPaintEvent *)
 {
