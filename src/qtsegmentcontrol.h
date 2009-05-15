@@ -60,7 +60,7 @@ public:
     int segmentAt(const QPoint &pos) const;
 
 protected:
-    void initStyleOption(int segment, QStyleOption *option);
+    void initStyleOption(int segment, QStyleOption *option) const;
     void paintEvent(QPaintEvent *pe);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);

@@ -38,18 +38,23 @@ struct SegmentInfo {
     QMenu *menu;
     bool selected;
     bool enabled;
+    QRect rect;
 };
 
 class QtSegmentControlPrivate {
 public:
-    QtSegmentControlPrivate(QtSegmentControl *myQ) : q(myQ), lastSelected(-1) {};
+    QtSegmentControlPrivate(QtSegmentControl *myQ) : q(myQ), lastSelected(-1), layoutDirty(true) {};
     ~QtSegmentControlPrivate() {};
+
+    void layoutSegments();
+    void postUpdate(int index = -1, bool geoToo = false);
 
     QtSegmentControl *q;
     QtSegmentControl::SelectionBehavior selectionBehavior;
     QSize iconSize;
     QVector<SegmentInfo> segments;
     int lastSelected;
+    bool layoutDirty;
     inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
 };
 
@@ -98,6 +103,18 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
     }
 }
 
+static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize)
+{
+    QSize ret = contentSize;
+    if (const QtStyleOptionSegmentControlSegment *segment
+            = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+        ret.rwidth() += 20;
+        if (!segment->icon.isNull())
+            ret.rwidth() += 5;
+    }
+    return ret;
+}
+
 static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, QWidget *)
 {
     if (const QtStyleOptionSegmentControlSegment *segment
@@ -113,9 +130,34 @@ static void drawSegmentControlSegment(const QStyleOption *option,
 #ifndef Q_WS_MAC
     painter->fillRect(option->rect, QColor(255, 0, 0, 135));
 #else
-    drawSegmentControlSegmentSegment(segment, painter, widget);
-    drawSegmentControlSegmentLabel(segment, painter, widget);
+    drawSegmentControlSegmentSegment(option, painter, widget);
+    drawSegmentControlSegmentLabel(option, painter, widget);
 #endif
+}
+
+void QtSegmentControlPrivate::layoutSegments()
+{
+    if (!layoutDirty)
+        return;
+    const int segmentCount = segments.count();
+    QRect rect;
+    for (int i = 0; i < segmentCount; ++i) {
+        QSize ssh = q->segmentSizeHint(i);
+        rect.setSize(ssh);
+        segments[i].rect = rect;
+        rect.setLeft(rect.left() + ssh.width());
+    }
+    layoutDirty = false;
+
+}
+
+void QtSegmentControlPrivate::postUpdate(int /*index*/, bool geoToo)
+{
+    if (geoToo) {
+        layoutDirty = true;
+        q->updateGeometry();
+    }
+    q->update();
 }
 
 QtSegmentControl::QtSegmentControl(QWidget *parent)
@@ -158,7 +200,7 @@ void QtSegmentControl::setSegmentSelected(int index, bool selected)
 
     if (d->segments[index].selected != selected) {
         d->segments[index].selected = selected;
-        update(); // ### segment rect;
+        d->postUpdate(index);
         emit segmentSelected(index);
     }
 }
@@ -170,7 +212,7 @@ void QtSegmentControl::setSegmentEnabled(int index, bool enabled)
 
     if (d->segments[index].enabled != enabled) {
         d->segments[index].enabled = enabled;
-        update(); // ### segment rect
+        d->postUpdate(index);
     }
 }
 
@@ -195,7 +237,7 @@ void QtSegmentControl::setSegmentText(int index, const QString &text)
 
     if (d->segments[index].text != text) {
         d->segments[index].text = text;
-        update(); // ### segment rect;
+        d->postUpdate(index, true);
     }
 }
 
@@ -210,7 +252,7 @@ void QtSegmentControl::setSegmentIcon(int index, const QIcon &icon)
         return;
 
     d->segments[index].icon = icon;
-    update(); // ## segment rect;
+    d->postUpdate(index, true);
 }
 
 QIcon QtSegmentControl::segmentIcon(int index) const
@@ -224,7 +266,7 @@ void QtSegmentControl::setIconSize(const QSize &size)
         return;
 
     d->iconSize = size;
-    update();
+    d->postUpdate(-1, true);
 }
 
 QSize QtSegmentControl::iconSize() const
@@ -241,7 +283,7 @@ void QtSegmentControl::setSegmentMenu(int index, QMenu *menu)
         QMenu *oldMenu = d->segments[index].menu;
         d->segments[index].menu = menu;
         delete oldMenu;
-        update(); // ### segment rect
+        d->postUpdate(index, true);
     }
 }
 
@@ -287,26 +329,41 @@ QSize QtSegmentControl::segmentSizeHint(int segment) const
         size.rwidth() += size2.width();
         size.rheight() = qMax(size.height(), size2.height());
     }
+    QtStyleOptionSegmentControlSegment opt;
+    opt.initFrom(this);
+    opt.text = segmentInfo.text;
+    opt.icon = segmentInfo.icon;
+    opt.iconSize = d->iconSize;
+    size = segmentSizeFromContents(&opt, size);
     return size;
 }
 
 QSize QtSegmentControl::sizeHint() const
 {
-    QSize size;
-    for (int i = 0; i < d->segments.count(); ++i) {
-        size += segmentSizeHint(i);
+    d->layoutSegments();
+    QRect rect;
+    const int segmentCount = d->segments.count();
+    for (int i = 0; i < segmentCount; ++i) {
+        rect.unite(segmentRect(i));
     }
-    return size;
+    return rect.size();
 }
 
 QRect QtSegmentControl::segmentRect(int index) const
 {
+    if (!d->indexOK(index))
+        return QRect();
+
+    SegmentInfo &info = d->segments[index];
+    if (!info.rect.isValid())
+        return info.rect;
     QRect rect;
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
         QSize sz = segmentSizeHint(i);
         if (i == index) {
             rect.setSize(sz);
+            info.rect = rect;
             return rect;
         }
         rect.setLeft(rect.left() + sz.width());
@@ -327,6 +384,7 @@ int QtSegmentControl::segmentAt(const QPoint &pos) const
 
 void QtSegmentControl::paintEvent(QPaintEvent *)
 {
+    d->layoutSegments();
     QPainter p(this);
     p.fillRect(rect(), Qt::blue);
     QtStyleOptionSegmentControlSegment segmentInfo;
@@ -367,7 +425,7 @@ bool QtSegmentControl::event(QEvent *event)
     return QWidget::event(event);
 }
 
-void QtSegmentControl::initStyleOption(int segment, QStyleOption *option)
+void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
 {
     if (!option || !d->indexOK(segment))
         return;
@@ -396,7 +454,7 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option)
                 sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NotAdjacent;
             }
         }
-        sgi->rect = segmentRect(segment);
+        sgi->rect = segmentInfo.rect;
         sgi->text = segmentInfo.text;
         sgi->icon = segmentInfo.icon;
     }
