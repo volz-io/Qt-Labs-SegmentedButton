@@ -17,8 +17,9 @@ int main(int argc, char **argv)
     segmentControl->setSegmentText(3, "Lisa");
     segmentControl->setSegmentText(4, "Maggie");
 
-    QVBoxLayout *vboxlayout = new QVBoxLayout(&widget);
+    QVBoxLayout *vboxlayout = new QVBoxLayout();
     vboxlayout->addWidget(segmentControl);
+    widget.setLayout(vboxlayout);
     widget.show();
 
     return app.exec();

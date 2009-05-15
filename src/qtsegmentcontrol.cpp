@@ -113,6 +113,7 @@ static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &co
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
         ret.rwidth() += 20;
+        ret.rheight() += 10;
         if (!segment->icon.isNull())
             ret.rwidth() += 5;
     }
@@ -163,6 +164,9 @@ void QtSegmentControlPrivate::postUpdate(int /*index*/, bool geoToo)
 QtSegmentControl::QtSegmentControl(QWidget *parent)
     : QWidget(parent), d(new QtSegmentControlPrivate(this))
 {
+    setFocusPolicy(Qt::TabFocus);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    setAttribute(Qt::WA_WState_OwnSizePolicy, false);
 }
 
 QtSegmentControl::~QtSegmentControl()
@@ -344,7 +348,7 @@ QSize QtSegmentControl::sizeHint() const
     QRect rect;
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
-        rect.unite(segmentRect(i));
+        rect = rect.united(segmentRect(i));
     }
     return rect.size();
 }
