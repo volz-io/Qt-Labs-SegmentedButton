@@ -2,6 +2,7 @@
 #include <QtGui/QMenu>
 #include <QtGui/QPainter>
 #include <QtGui/QStyleOption>
+#include <QtCore/QDebug>
 
 #include "qtsegmentcontrol.h"
 
@@ -77,7 +78,7 @@ protected:
 };
 
 static void drawSegmentControlSegment(const QStyleOption *option,
-                                      QPainter *painter, QWidget *widget = 0)
+                                      QPainter *painter, QWidget * = 0)
 {
 #ifndef Q_WS_MAC
     painter->fillRect(option->rect, Qt::blue);
@@ -85,7 +86,6 @@ static void drawSegmentControlSegment(const QStyleOption *option,
     // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-        qDebug("Segment pos %d", segment->position);
         CGContextRef cg = qt_mac_cg_context(painter->device());
         HIThemeSegmentDrawInfo sgi;
         sgi.version = 0;
@@ -261,23 +261,59 @@ QString QtSegmentControl::segmentWhatsThis(int segment) const
     return d->indexOK(segment) ? d->segments.at(segment).whatsThis : QString();
 }
 
-QSize QtSegmentControl::segmentSizeHint(int segment, const QSize &size) const
+QSize QtSegmentControl::segmentSizeHint(int segment) const
 {
-    return QSize(20, 20);
+    QSize size;
+    const SegmentInfo &segmentInfo = d->segments[segment];
+    QFontMetrics fm(font());
+    size = fm.size(0, segmentInfo.text);
+    if (!segmentInfo.icon.isNull()) {
+        QSize size2 = segmentInfo.icon.actualSize(iconSize());
+        size.rwidth() += size2.width();
+        size.rheight() = qMax(size.height(), size2.height());
+    }
+    return size;
 }
 
 QSize QtSegmentControl::sizeHint() const
 {
     QSize size;
     for (int i = 0; i < d->segments.count(); ++i) {
-        size += segmentSizeHint(i, size);
+        size += segmentSizeHint(i);
     }
     return size;
+}
+
+QRect QtSegmentControl::segmentRect(int index) const
+{
+    QRect rect;
+    const int segmentCount = d->segments.count();
+    for (int i = 0; i < segmentCount; ++i) {
+        QSize sz = segmentSizeHint(i);
+        if (i == index) {
+            rect.setSize(sz);
+            return rect;
+        }
+        rect.setLeft(rect.left() + sz.width());
+    }
+    return QRect();
+}
+
+int QtSegmentControl::segmentAt(const QPoint &pos) const
+{
+    const int segmentCount = d->segments.count();
+    for (int i = 0; i < segmentCount; ++i) {
+        QRect rect = segmentRect(i);
+        if (rect.contains(pos))
+            return i;
+    }
+    return -1;
 }
 
 void QtSegmentControl::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
+    p.fillRect(rect(), Qt::blue);
     QtStyleOptionSegmentControlSegment segmentInfo;
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
@@ -345,6 +381,7 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option)
                 sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NotAdjacent;
             }
         }
+        sgi->rect = segmentRect(segment);
         sgi->text = segmentInfo.text;
         sgi->icon = segmentInfo.icon;
     }

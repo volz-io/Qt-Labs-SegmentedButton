@@ -53,8 +53,11 @@ public:
     void setSegmentWhatsThis(int segment, const QString &whatsThisText);
     QString segmentWhatsThis(int segment) const;
 
-    virtual QSize segmentSizeHint(int segment, const QSize &size) const;
+    virtual QSize segmentSizeHint(int segment) const;
     QSize sizeHint() const;
+
+    QRect segmentRect(int index) const;
+    int segmentAt(const QPoint &pos) const;
 
 protected:
     void initStyleOption(int segment, QStyleOption *option);
