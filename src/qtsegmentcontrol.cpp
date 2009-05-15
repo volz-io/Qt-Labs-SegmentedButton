@@ -351,24 +351,7 @@ QSize QtSegmentControl::sizeHint() const
 
 QRect QtSegmentControl::segmentRect(int index) const
 {
-    if (!d->indexOK(index))
-        return QRect();
-
-    SegmentInfo &info = d->segments[index];
-    if (!info.rect.isValid())
-        return info.rect;
-    QRect rect;
-    const int segmentCount = d->segments.count();
-    for (int i = 0; i < segmentCount; ++i) {
-        QSize sz = segmentSizeHint(i);
-        if (i == index) {
-            rect.setSize(sz);
-            info.rect = rect;
-            return rect;
-        }
-        rect.setLeft(rect.left() + sz.width());
-    }
-    return QRect();
+    return d->indexOK(index) ? d->segments[index].rect : QRect();
 }
 
 int QtSegmentControl::segmentAt(const QPoint &pos) const
@@ -397,27 +380,27 @@ void QtSegmentControl::paintEvent(QPaintEvent *)
 
 void QtSegmentControl::mousePressEvent(QMouseEvent *event)
 {
-    return QWidget::mousePressEvent(event);
+    QWidget::mousePressEvent(event);
 }
 
 void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
 {
-    return QWidget::mouseMoveEvent(event);
+    QWidget::mouseMoveEvent(event);
 }
 
 void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
 {
-    return QWidget::mouseReleaseEvent(event);
+    QWidget::mouseReleaseEvent(event);
 }
 
 void QtSegmentControl::keyPressEvent(QKeyEvent *event)
 {
-    return QWidget::keyPressEvent(event);
+    QWidget::keyPressEvent(event);
 }
 
 void QtSegmentControl::keyReleaseEvent(QKeyEvent *event)
 {
-    return QWidget::keyReleaseEvent(event);
+    QWidget::keyReleaseEvent(event);
 }
 
 bool QtSegmentControl::event(QEvent *event)
