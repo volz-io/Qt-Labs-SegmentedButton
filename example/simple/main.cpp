@@ -3,24 +3,50 @@
 #include <QtGui/QVBoxLayout>
 #include "qtsegmentcontrol.h"
 
+class MyWindow : public QWidget
+{
+    Q_OBJECT
+public:
+    MyWindow() {
+        controller = new QtSegmentControl();
+        controller->setCount(3);
+        controller->setSegmentText(0, tr("Select One"));
+        controller->setSegmentText(1, tr("Select All"));
+        controller->setSegmentText(2, tr("Select None"));
+        controller->setSelectionBehavior(QtSegmentControl::SelectOne);
+        connect(controller, SIGNAL(segmentSelected(int)), this, SLOT(updateBehavior(int)));
+        segmentControl = new QtSegmentControl();
+        segmentControl->setCount(5);
+        segmentControl->setSegmentText(0, "Homer");
+        segmentControl->setSegmentText(1, "Marge");
+        segmentControl->setSegmentText(2, "Bart");
+        segmentControl->setSegmentText(3, "Lisa");
+        segmentControl->setSegmentText(4, "Maggie");
+        controller->setSegmentSelected(0, true);
+
+        QVBoxLayout *vboxlayout = new QVBoxLayout();
+        vboxlayout->addWidget(controller);
+        vboxlayout->addWidget(segmentControl);
+        setLayout(vboxlayout);
+    }
+
+private slots:
+    void updateBehavior(int newOne) {
+        segmentControl->setSelectionBehavior(QtSegmentControl::SelectionBehavior(newOne));
+    }
+
+private:
+    QtSegmentControl *controller;
+    QtSegmentControl *segmentControl;
+};
+
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-
-    QWidget widget;
-    QtSegmentControl *segmentControl = new QtSegmentControl(&widget);
-    segmentControl->setSelectionBehavior(QtSegmentControl::SelectOne);
-    segmentControl->setCount(5);
-    segmentControl->setSegmentText(0, "Homer");
-    segmentControl->setSegmentText(1, "Marge");
-    segmentControl->setSegmentText(2, "Bart");
-    segmentControl->setSegmentText(3, "Lisa");
-    segmentControl->setSegmentText(4, "Maggie");
-
-    QVBoxLayout *vboxlayout = new QVBoxLayout();
-    vboxlayout->addWidget(segmentControl);
-    widget.setLayout(vboxlayout);
-    widget.show();
-
+    MyWindow window;
+    window.show();
     return app.exec();
 }
+
+#include "main.moc"

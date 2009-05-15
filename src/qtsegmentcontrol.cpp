@@ -434,9 +434,9 @@ void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
             setSegmentSelected(index, !d->segments[index].selected);
         } else {
             setSegmentSelected(index, true);
-            d->postUpdate(index);
         }
     }
+    d->postUpdate(index);
     d->wasPressed = -1;
 }
 
