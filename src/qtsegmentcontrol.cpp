@@ -2,6 +2,7 @@
 #include <QtGui/QMenu>
 #include <QtGui/QPainter>
 #include <QtGui/QStyleOption>
+#include <QtGui/QMouseEvent>
 #include <QtCore/QDebug>
 
 #include "qtsegmentcontrol.h"
@@ -27,36 +28,6 @@ static ThemeDrawState getDrawState(QStyle::State flags)
 }
 
 #endif
-
-struct SegmentInfo {
-    SegmentInfo() : menu(0), selected(false), enabled(true) {}
-    ~SegmentInfo() { delete menu; }
-    QString text;
-    QString toolTip;
-    QString whatsThis;
-    QIcon icon;
-    QMenu *menu;
-    bool selected;
-    bool enabled;
-    QRect rect;
-};
-
-class QtSegmentControlPrivate {
-public:
-    QtSegmentControlPrivate(QtSegmentControl *myQ) : q(myQ), lastSelected(-1), layoutDirty(true) {};
-    ~QtSegmentControlPrivate() {};
-
-    void layoutSegments();
-    void postUpdate(int index = -1, bool geoToo = false);
-
-    QtSegmentControl *q;
-    QtSegmentControl::SelectionBehavior selectionBehavior;
-    QSize iconSize;
-    QVector<SegmentInfo> segments;
-    int lastSelected;
-    bool layoutDirty;
-    inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
-};
 
 class QtStyleOptionSegmentControlSegment : public QStyleOption
 {
@@ -136,6 +107,39 @@ static void drawSegmentControlSegment(const QStyleOption *option,
     drawSegmentControlSegmentLabel(option, painter, widget);
 }
 
+struct SegmentInfo {
+    SegmentInfo() : menu(0), selected(false), enabled(true) {}
+    ~SegmentInfo() { delete menu; }
+    QString text;
+    QString toolTip;
+    QString whatsThis;
+    QIcon icon;
+    QMenu *menu;
+    bool selected;
+    bool enabled;
+    QRect rect;
+};
+
+class QtSegmentControlPrivate {
+public:
+    QtSegmentControlPrivate(QtSegmentControl *myQ)
+        : q(myQ), lastSelected(-1), layoutDirty(true), pressedIndex(-1), wasPressed(-1) {};
+    ~QtSegmentControlPrivate() {};
+
+    void layoutSegments();
+    void postUpdate(int index = -1, bool geoToo = false);
+
+    QtSegmentControl *q;
+    QtSegmentControl::SelectionBehavior selectionBehavior;
+    QSize iconSize;
+    QVector<SegmentInfo> segments;
+    int lastSelected;
+    bool layoutDirty;
+    int pressedIndex;
+    int wasPressed;
+    inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
+};
+
 void QtSegmentControlPrivate::layoutSegments()
 {
     if (!layoutDirty)
@@ -204,6 +208,17 @@ void QtSegmentControl::setSegmentSelected(int index, bool selected)
 
     if (d->segments[index].selected != selected) {
         d->segments[index].selected = selected;
+        d->lastSelected = index;
+        if (d->selectionBehavior == SelectOne) {
+            const int segmentCount = d->segments.count();
+            for (int i = 0; i < segmentCount; ++i) {
+                SegmentInfo &info = d->segments[i];
+                if (i != index && info.selected) {
+                    info.selected = false;
+                    d->postUpdate(i);
+                }
+            }
+        }
         d->postUpdate(index);
         emit segmentSelected(index);
     }
@@ -224,9 +239,18 @@ void QtSegmentControl::setSelectionBehavior(SelectionBehavior behavior)
 {
     if (d->selectionBehavior == behavior)
         return;
-
     d->selectionBehavior = behavior;
-    // ### change up selection and update()
+    if (behavior == SelectOne) {
+        // This call will do the right thing.
+        setSegmentSelected(d->lastSelected, true);
+    } else if (behavior == SelectNone) {
+        d->lastSelected = -1;
+        const int segmentCount = d->segments.count();
+        for (int i = 0; i < segmentCount; ++i) {
+            d->segments[i].selected = false;
+        }
+        d->postUpdate(-1);
+    }
 }
 
 QtSegmentControl::SelectionBehavior QtSegmentControl::selectionBehavior() const
@@ -384,17 +408,36 @@ void QtSegmentControl::paintEvent(QPaintEvent *)
 
 void QtSegmentControl::mousePressEvent(QMouseEvent *event)
 {
-    QWidget::mousePressEvent(event);
+    d->wasPressed = d->pressedIndex = segmentAt(event->pos());
+    d->postUpdate(d->pressedIndex);
 }
 
 void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
 {
-    QWidget::mouseMoveEvent(event);
+    int index = segmentAt(event->pos());
+    if (index != d->wasPressed) {
+        d->pressedIndex = -1;
+        d->postUpdate(d->wasPressed);
+    } else if (index == d->wasPressed && d->pressedIndex == -1) {
+        d->pressedIndex = d->wasPressed;
+        d->postUpdate(d->wasPressed);
+    }
 }
 
 void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
 {
-    QWidget::mouseReleaseEvent(event);
+    int index = segmentAt(event->pos());
+    // This order of reset is important.
+    d->pressedIndex = -1;
+    if (index == d->wasPressed && d->selectionBehavior != SelectNone) {
+        if (d->selectionBehavior == SelectAll) {
+            setSegmentSelected(index, !d->segments[index].selected);
+        } else {
+            setSegmentSelected(index, true);
+            d->postUpdate(index);
+        }
+    }
+    d->wasPressed = -1;
 }
 
 void QtSegmentControl::keyPressEvent(QKeyEvent *event)
@@ -417,6 +460,8 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
     if (!option || !d->indexOK(segment))
         return;
     option->initFrom(this);
+    if (segment == d->pressedIndex)
+        option->state |= QStyle::State_Sunken;
     // ## Change to qstyleoption_cast
     if (QtStyleOptionSegmentControlSegment *sgi = static_cast<QtStyleOptionSegmentControlSegment *>(option)) {
         sgi->iconSize = d->iconSize;

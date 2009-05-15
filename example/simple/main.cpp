@@ -8,8 +8,8 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
 
     QWidget widget;
-    widget.resize(200, 200);
     QtSegmentControl *segmentControl = new QtSegmentControl(&widget);
+    segmentControl->setSelectionBehavior(QtSegmentControl::SelectOne);
     segmentControl->setCount(5);
     segmentControl->setSegmentText(0, "Homer");
     segmentControl->setSegmentText(1, "Marge");
