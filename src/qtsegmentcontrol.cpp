@@ -77,13 +77,9 @@ protected:
     QtStyleOptionSegmentControlSegment(int version);
 };
 
-static void drawSegmentControlSegment(const QStyleOption *option,
-                                      QPainter *painter, QWidget * = 0)
+static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *)
 {
-#ifndef Q_WS_MAC
-    painter->fillRect(option->rect, Qt::blue);
-#else
-    // ### Change to qstyleoption_cast!
+        // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
         CGContextRef cg = qt_mac_cg_context(painter->device());
@@ -100,6 +96,25 @@ static void drawSegmentControlSegment(const QStyleOption *option,
         HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
         CFRelease(cg);
     }
+}
+
+static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, QWidget *)
+{
+    if (const QtStyleOptionSegmentControlSegment *segment
+            = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+        painter->drawText(segment->rect, Qt::AlignCenter, segment->text);
+    }
+
+}
+
+static void drawSegmentControlSegment(const QStyleOption *option,
+                                      QPainter *painter, QWidget *widget)
+{
+#ifndef Q_WS_MAC
+    painter->fillRect(option->rect, QColor(255, 0, 0, 135));
+#else
+    drawSegmentControlSegmentSegment(segment, painter, widget);
+    drawSegmentControlSegmentLabel(segment, painter, widget);
 #endif
 }
 
