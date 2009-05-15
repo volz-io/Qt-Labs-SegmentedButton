@@ -84,7 +84,8 @@ protected:
 
 static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *)
 {
-        // ### Change to qstyleoption_cast!
+#ifdef Q_WS_MAC
+    // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
         CGContextRef cg = qt_mac_cg_context(painter->device());
@@ -101,6 +102,9 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
         HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
         CFRelease(cg);
     }
+#else
+    painter->drawRect(option->rect, QColor(0, 255, 0, 135));
+#endif
 }
 
 static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize)
@@ -127,12 +131,8 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
 static void drawSegmentControlSegment(const QStyleOption *option,
                                       QPainter *painter, QWidget *widget)
 {
-#ifndef Q_WS_MAC
-    painter->fillRect(option->rect, QColor(255, 0, 0, 135));
-#else
     drawSegmentControlSegmentSegment(option, painter, widget);
     drawSegmentControlSegmentLabel(option, painter, widget);
-#endif
 }
 
 void QtSegmentControlPrivate::layoutSegments()
