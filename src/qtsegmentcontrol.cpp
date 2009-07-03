@@ -66,7 +66,8 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
         HIThemeSegmentDrawInfo sgi;
         bool selected = (segment->state & QStyle::State_Selected);
         sgi.version = 0;
-        sgi.state = getDrawState(segment->state);
+        // Things look the same regardless of enabled.
+        sgi.state = getDrawState(segment->state | QStyle::State_Enabled);
         sgi.value = selected ? kThemeButtonOn : kThemeButtonOff;
         sgi.size = kHIThemeSegmentSizeNormal;
         sgi.kind = kHIThemeSegmentKindNormal;
@@ -122,8 +123,12 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
 {
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-        qApp->style()->drawItemText(painter, segment->rect, Qt::AlignCenter, segment->palette,
-                                    segment->state & QStyle::State_Enabled, segment->text);
+        QPalette palette = segment->palette;
+        bool enabled = segment->state & QStyle::State_Enabled;
+        if (!enabled)
+            palette.setCurrentColorGroup(QPalette::Disabled);
+        qApp->style()->drawItemText(painter, segment->rect, Qt::AlignCenter, palette,
+                                    enabled, segment->text, QPalette::WindowText);
     }
 
 }
