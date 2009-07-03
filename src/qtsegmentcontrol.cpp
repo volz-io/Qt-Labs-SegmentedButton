@@ -36,16 +36,17 @@ public:
     enum StyleOptionVersion { Version = 1 };
 
     enum SegmentPosition { Beginning, Middle, End, OnlyOneSegment };
-    enum SelectedPosition { NotAdjacent, NextIsSelected, PreviousIsSelected };
+    enum SelectedPosition { NotAdjacent = 0x0, NextIsSelected = 0x1, PreviousIsSelected = 0x2 };
+    Q_DECLARE_FLAGS(SelectedPositions, SelectedPosition)
 
     QString text;
     QIcon icon;
     QSize iconSize;
     SegmentPosition position;
-    SelectedPosition selectedPosition;
+    SelectedPositions selectedPositions;
 
     QtStyleOptionSegmentControlSegment()
-       : position(OnlyOneSegment), selectedPosition(NotAdjacent) { }
+       : position(OnlyOneSegment), selectedPositions(NotAdjacent) { }
     QtStyleOptionSegmentControlSegment(const QtStyleOptionSegmentControlSegment &other)
         : QStyleOption(Version, Type) { *this = other; }
 
@@ -61,13 +62,37 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
         CGContextRef cg = qt_mac_cg_context(painter->device());
         HIThemeSegmentDrawInfo sgi;
+        bool selected = (segment->state & QStyle::State_Selected);
         sgi.version = 0;
         sgi.state = getDrawState(segment->state);
-        sgi.value = (segment->state & QStyle::State_Selected) ? kThemeButtonOn : kThemeButtonOff;
+        sgi.value = selected ? kThemeButtonOn : kThemeButtonOff;
         sgi.size = kHIThemeSegmentSizeNormal;
         sgi.kind = kHIThemeSegmentKindNormal;
-        sgi.position = segment->position;
         sgi.adornment = kHIThemeSegmentAdornmentNone;
+        switch (segment->position) {
+        case QtStyleOptionSegmentControlSegment::Beginning:
+            sgi.position = kHIThemeSegmentPositionFirst;
+            if (segment->selectedPositions == QtStyleOptionSegmentControlSegment::NotAdjacent
+                || selected)
+                sgi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
+            break;
+        case QtStyleOptionSegmentControlSegment::Middle:
+            sgi.position = kHIThemeSegmentPositionMiddle;
+            if (selected && !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::PreviousIsSelected))
+                sgi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
+            if (selected || !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::NextIsSelected)) // Also when we're selected.
+                sgi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
+            break;
+        case QStyleOptionTab::End:
+            sgi.position = kHIThemeSegmentPositionLast;
+            if (selected && !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::PreviousIsSelected))
+                sgi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
+            break;
+        case QStyleOptionTab::OnlyOneTab:
+            sgi.position = kHIThemeSegmentPositionOnly;
+            break;
+        }
+
         HIRect hirect = CGRectMake(segment->rect.x(), segment->rect.y(),
                                    segment->rect.width(), segment->rect.height());
         HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
@@ -462,7 +487,7 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
     option->initFrom(this);
     if (segment == d->pressedIndex)
         option->state |= QStyle::State_Sunken;
-    // ## Change to qstyleoption_cast
+    // ### Change to qstyleoption_cast
     if (QtStyleOptionSegmentControlSegment *sgi = static_cast<QtStyleOptionSegmentControlSegment *>(option)) {
         sgi->iconSize = d->iconSize;
         const SegmentInfo &segmentInfo = d->segments[segment];
@@ -477,14 +502,14 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
         }
         if (segmentInfo.selected) {
             sgi->state |= QStyle::State_Selected;
-        } else {
-            if (d->indexOK(segment - 1) && d->segments[segment - 1].selected) {
-                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::PreviousIsSelected;
-            } else if (d->indexOK(segment + 1) && d->segments[segment + 1].selected) {
-                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NextIsSelected;
-            } else {
-                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NotAdjacent;
-            }
+        }
+
+        if (d->selectionBehavior != QtSegmentControl::SelectNone) {
+            sgi->selectedPositions = QtStyleOptionSegmentControlSegment::NotAdjacent;
+            if (d->indexOK(segment - 1) && d->segments[segment - 1].selected)
+                sgi->selectedPositions |= QtStyleOptionSegmentControlSegment::PreviousIsSelected;
+            if (d->indexOK(segment + 1) && d->segments[segment + 1].selected)
+                sgi->selectedPositions |= QtStyleOptionSegmentControlSegment::NextIsSelected;
         }
         sgi->rect = segmentInfo.rect;
         sgi->text = segmentInfo.text;
