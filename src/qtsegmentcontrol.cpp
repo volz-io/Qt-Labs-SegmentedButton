@@ -1,6 +1,8 @@
+#include <QtGui/QApplication>
 #include <QtGui/QIcon>
 #include <QtGui/QMenu>
 #include <QtGui/QPainter>
+#include <QtGui/QStyle>
 #include <QtGui/QStyleOption>
 #include <QtGui/QMouseEvent>
 #include <QtCore/QDebug>
@@ -120,7 +122,8 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
 {
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-        painter->drawText(segment->rect, Qt::AlignCenter, segment->text);
+        qApp->style()->drawItemText(painter, segment->rect, Qt::AlignCenter, segment->palette,
+                                    segment->state & QStyle::State_Enabled, segment->text);
     }
 
 }
@@ -416,7 +419,7 @@ int QtSegmentControl::segmentAt(const QPoint &pos) const
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
         QRect rect = segmentRect(i);
-        if (rect.contains(pos))
+        if (rect.contains(pos) && d->segments.at(i).enabled)
             return i;
     }
     return -1;
@@ -437,8 +440,11 @@ void QtSegmentControl::paintEvent(QPaintEvent *)
 
 void QtSegmentControl::mousePressEvent(QMouseEvent *event)
 {
-    d->wasPressed = d->pressedIndex = segmentAt(event->pos());
-    d->postUpdate(d->pressedIndex);
+    int segmentIndex = segmentAt(event->pos());
+    if (segmentIndex != -1) {
+        d->wasPressed = d->pressedIndex = segmentAt(event->pos());
+        d->postUpdate(d->pressedIndex);
+    }
 }
 
 void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
@@ -456,6 +462,8 @@ void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
 void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
 {
     int index = segmentAt(event->pos());
+    if (index == -1)
+        return;
     // This order of reset is important.
     d->pressedIndex = -1;
     if (index == d->wasPressed && d->selectionBehavior != SelectNone) {
@@ -504,9 +512,11 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
         } else {
             sgi->position = QtStyleOptionSegmentControlSegment::Middle;
         }
-        if (segmentInfo.selected) {
+
+        if (segmentInfo.selected)
             sgi->state |= QStyle::State_Selected;
-        }
+        if (!segmentInfo.enabled)
+            sgi->state &= ~QStyle::State_Enabled;
 
         if (d->selectionBehavior != QtSegmentControl::SelectNone) {
             sgi->selectedPositions = QtStyleOptionSegmentControlSegment::NotAdjacent;

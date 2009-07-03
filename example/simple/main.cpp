@@ -1,5 +1,6 @@
 #include <QtGui/QApplication>
 #include <QtGui/QWidget>
+#include <QtGui/QCheckBox>
 #include <QtGui/QVBoxLayout>
 #include "qtsegmentcontrol.h"
 
@@ -9,10 +10,12 @@ class MyWindow : public QWidget
 public:
     MyWindow() {
         controller = new QtSegmentControl();
-        controller->setCount(3);
+        controller->setCount(4);
         controller->setSegmentText(0, tr("Select One"));
         controller->setSegmentText(1, tr("Select All"));
         controller->setSegmentText(2, tr("Select None"));
+        controller->setSegmentText(3, tr("Permanently Disabled"));
+        controller->setSegmentEnabled(3, false);
         controller->setSelectionBehavior(QtSegmentControl::SelectOne);
         connect(controller, SIGNAL(segmentSelected(int)), this, SLOT(updateBehavior(int)));
         segmentControl = new QtSegmentControl();
@@ -24,15 +27,24 @@ public:
         segmentControl->setSegmentText(4, "Maggie");
         controller->setSegmentSelected(0, true);
 
+        QCheckBox *button = new QCheckBox(tr("Disable Bart"));
+        button->setChecked(false);
+        connect(button, SIGNAL(toggled(bool)), SLOT(updateBart(bool)));
+
         QVBoxLayout *vboxlayout = new QVBoxLayout();
         vboxlayout->addWidget(controller);
         vboxlayout->addWidget(segmentControl);
+        vboxlayout->addWidget(button);
         setLayout(vboxlayout);
     }
 
 private slots:
     void updateBehavior(int newOne) {
         segmentControl->setSelectionBehavior(QtSegmentControl::SelectionBehavior(newOne));
+    }
+
+    void updateBart(bool enabled) {
+        segmentControl->setSegmentEnabled(2, !enabled);
     }
 
 private:
