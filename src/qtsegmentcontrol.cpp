@@ -161,6 +161,7 @@ public:
 
     void layoutSegments();
     void postUpdate(int index = -1, bool geoToo = false);
+    QtStyleOptionSegmentControlSegment::SegmentPosition segmentPositionForIndex(int i);
 
     QtSegmentControl *q;
     QtSegmentControl::SelectionBehavior selectionBehavior;
@@ -172,6 +173,17 @@ public:
     int wasPressed;
     inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
 };
+
+QtStyleOptionSegmentControlSegment::SegmentPosition QtSegmentControlPrivate::segmentPositionForIndex(int segment)
+{
+    if (segments.count() <= 1)
+        return QtStyleOptionSegmentControlSegment::OnlyOneSegment;
+    if (segment == 0)
+        return QtStyleOptionSegmentControlSegment::Beginning;
+    if (segment == segments.count() - 1)
+        return QtStyleOptionSegmentControlSegment::End;
+    return QtStyleOptionSegmentControlSegment::Middle;
+}
 
 void QtSegmentControlPrivate::layoutSegments()
 {
@@ -507,16 +519,7 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
     if (QtStyleOptionSegmentControlSegment *sgi = static_cast<QtStyleOptionSegmentControlSegment *>(option)) {
         sgi->iconSize = d->iconSize;
         const SegmentInfo &segmentInfo = d->segments[segment];
-        if (d->segments.count() == 1) {
-            sgi->position = QtStyleOptionSegmentControlSegment::OnlyOneSegment;
-        } else if (segment == 0) {
-            sgi->position = QtStyleOptionSegmentControlSegment::Beginning;
-        } else if (segment == d->segments.count() - 1) {
-            sgi->position = QtStyleOptionSegmentControlSegment::End;
-        } else {
-            sgi->position = QtStyleOptionSegmentControlSegment::Middle;
-        }
-
+        sgi->position = d->segmentPositionForIndex(segment);
         if (segmentInfo.selected)
             sgi->state |= QStyle::State_Selected;
         if (!segmentInfo.enabled)
