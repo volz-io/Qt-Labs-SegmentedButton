@@ -10,6 +10,7 @@
 #include "qtsegmentcontrol.h"
 
 #ifdef Q_WS_MAC
+#include <QtGui/QMacStyle>
 #include <Carbon/Carbon.h>
 
 static ThemeDrawState getDrawState(QStyle::State flags)
@@ -106,20 +107,60 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
 #endif
 }
 
-static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize)
+static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize, const QWidget *widget)
 {
     QSize ret = contentSize;
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-        ret.rwidth() += 20;
-        ret.rheight() += 10;
-        if (!segment->icon.isNull())
-            ret.rwidth() += 5;
+        if (qobject_cast<QMacStyle *>(widget->style())) {
+            ret.rheight() += 10;
+            switch (segment->position) {
+            default:
+            case QtStyleOptionSegmentControlSegment::Middle:
+                ret.rwidth() += 20;
+                break;
+            case QtStyleOptionSegmentControlSegment::End:
+                ret.rwidth() += 23;
+                break;
+            case QtStyleOptionSegmentControlSegment::Beginning:
+            case QtStyleOptionSegmentControlSegment::OnlyOneSegment:
+                ret.rwidth() += 24;
+                break;
+            }
+            if (!segment->icon.isNull())
+                ret.rwidth() += 5;
+        }
     }
     return ret;
 }
 
-static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, QWidget *)
+static QRect segmentElementRect(const QStyleOption *option, const QWidget *widget)
+{
+    QRect retRect = option->rect;
+    if (const QtStyleOptionSegmentControlSegment *segment
+            = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+#ifdef Q_WS_MAC
+        if (qobject_cast<QMacStyle *>(widget->style())) {
+            retRect.adjust(+11, +4, -11, -6);
+            switch (segment->position) {
+            default:
+            case QtStyleOptionSegmentControlSegment::Middle:
+                break;
+            case QtStyleOptionSegmentControlSegment::Beginning:
+            case QtStyleOptionSegmentControlSegment::End:
+                retRect.adjust(+1, 0, -1, 0);
+                break;
+            case QtStyleOptionSegmentControlSegment::OnlyOneSegment:
+                retRect.adjust(+2, 0, -2, 0);
+                break;
+            }
+        }
+#endif
+    }
+    return retRect;
+}
+
+static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, const QWidget *widget)
 {
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
@@ -127,7 +168,8 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
         bool enabled = segment->state & QStyle::State_Enabled;
         if (!enabled)
             palette.setCurrentColorGroup(QPalette::Disabled);
-        qApp->style()->drawItemText(painter, segment->rect, Qt::AlignCenter, palette,
+        QRect textRect = segmentElementRect(option, widget);
+        widget->style()->drawItemText(painter, textRect, Qt::AlignCenter, palette,
                                     enabled, segment->text, QPalette::WindowText);
     }
 
