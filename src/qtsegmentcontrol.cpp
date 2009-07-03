@@ -57,54 +57,56 @@ protected:
     QtStyleOptionSegmentControlSegment(int version);
 };
 
-static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *)
+static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
-#ifdef Q_WS_MAC
     // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-        CGContextRef cg = qt_mac_cg_context(painter->device());
-        HIThemeSegmentDrawInfo sgi;
-        bool selected = (segment->state & QStyle::State_Selected);
-        sgi.version = 0;
-        // Things look the same regardless of enabled.
-        sgi.state = getDrawState(segment->state | QStyle::State_Enabled);
-        sgi.value = selected ? kThemeButtonOn : kThemeButtonOff;
-        sgi.size = kHIThemeSegmentSizeNormal;
-        sgi.kind = kHIThemeSegmentKindNormal;
-        sgi.adornment = kHIThemeSegmentAdornmentNone;
-        switch (segment->position) {
-        case QtStyleOptionSegmentControlSegment::Beginning:
-            sgi.position = kHIThemeSegmentPositionFirst;
-            if (segment->selectedPositions == QtStyleOptionSegmentControlSegment::NotAdjacent
-                || selected)
-                sgi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
-            break;
-        case QtStyleOptionSegmentControlSegment::Middle:
-            sgi.position = kHIThemeSegmentPositionMiddle;
-            if (selected && !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::PreviousIsSelected))
-                sgi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
-            if (selected || !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::NextIsSelected)) // Also when we're selected.
-                sgi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
-            break;
-        case QStyleOptionTab::End:
-            sgi.position = kHIThemeSegmentPositionLast;
-            if (selected && !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::PreviousIsSelected))
-                sgi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
-            break;
-        case QStyleOptionTab::OnlyOneTab:
-            sgi.position = kHIThemeSegmentPositionOnly;
-            break;
-        }
+#ifdef Q_WS_MAC
+        if (qobject_cast<QMacStyle *>(widget->style())) {
+            CGContextRef cg = qt_mac_cg_context(painter->device());
+            HIThemeSegmentDrawInfo sgi;
+            bool selected = (segment->state & QStyle::State_Selected);
+            sgi.version = 0;
+            // Things look the same regardless of enabled.
+            sgi.state = getDrawState(segment->state | QStyle::State_Enabled);
+            sgi.value = selected ? kThemeButtonOn : kThemeButtonOff;
+            sgi.size = kHIThemeSegmentSizeNormal;
+            sgi.kind = kHIThemeSegmentKindNormal;
+            sgi.adornment = kHIThemeSegmentAdornmentNone;
+            switch (segment->position) {
+            case QtStyleOptionSegmentControlSegment::Beginning:
+                sgi.position = kHIThemeSegmentPositionFirst;
+                if (segment->selectedPositions == QtStyleOptionSegmentControlSegment::NotAdjacent
+                    || selected)
+                    sgi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
+                break;
+            case QtStyleOptionSegmentControlSegment::Middle:
+                sgi.position = kHIThemeSegmentPositionMiddle;
+                if (selected && !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::PreviousIsSelected))
+                    sgi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
+                if (selected || !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::NextIsSelected)) // Also when we're selected.
+                    sgi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
+                break;
+            case QStyleOptionTab::End:
+                sgi.position = kHIThemeSegmentPositionLast;
+                if (selected && !(segment->selectedPositions & QtStyleOptionSegmentControlSegment::PreviousIsSelected))
+                    sgi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
+                break;
+            case QStyleOptionTab::OnlyOneTab:
+                sgi.position = kHIThemeSegmentPositionOnly;
+                break;
+            }
 
-        HIRect hirect = CGRectMake(segment->rect.x(), segment->rect.y(),
-                                   segment->rect.width(), segment->rect.height());
-        HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
-        CFRelease(cg);
-    }
+            HIRect hirect = CGRectMake(segment->rect.x(), segment->rect.y(),
+                                       segment->rect.width(), segment->rect.height());
+            HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
+            CFRelease(cg);
+        }
 #else
     painter->drawRect(option->rect, QColor(0, 255, 0, 135));
 #endif
+    }
 }
 
 static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize, const QWidget *widget)
