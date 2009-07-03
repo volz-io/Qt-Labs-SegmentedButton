@@ -411,7 +411,8 @@ QSize QtSegmentControl::segmentSizeHint(int segment) const
     opt.text = segmentInfo.text;
     opt.icon = segmentInfo.icon;
     opt.iconSize = d->iconSize;
-    size = segmentSizeFromContents(&opt, size);
+    opt.position = d->segmentPositionForIndex(segment);
+    size = segmentSizeFromContents(&opt, size, this);
     return size;
 }
 
