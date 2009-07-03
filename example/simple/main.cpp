@@ -31,9 +31,16 @@ public:
         button->setChecked(false);
         connect(button, SIGNAL(toggled(bool)), SLOT(updateBart(bool)));
 
+
         QVBoxLayout *vboxlayout = new QVBoxLayout();
         vboxlayout->addWidget(controller);
         vboxlayout->addWidget(segmentControl);
+        vboxlayout->addWidget(button);
+
+        button = new QCheckBox(tr("Disable the whole thing"));
+        button->setChecked(false);
+        connect(button, SIGNAL(toggled(bool)), SLOT(updateDisabledController(bool)));
+
         vboxlayout->addWidget(button);
         setLayout(vboxlayout);
     }
@@ -45,6 +52,11 @@ private slots:
 
     void updateBart(bool enabled) {
         segmentControl->setSegmentEnabled(2, !enabled);
+    }
+
+    void updateDisabledController(bool disabled)
+    {
+        segmentControl->setDisabled(disabled);
     }
 
 private:
