@@ -102,10 +102,22 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
                                        segment->rect.width(), segment->rect.height());
             HIThemeDrawSegment(&hirect, &sgi, cg, kHIThemeOrientationNormal);
             CFRelease(cg);
-        }
-#else
-    painter->drawRect(option->rect, QColor(0, 255, 0, 135));
+        } else
 #endif
+        {
+            painter->save();
+            painter->setPen(QPen(segment->palette.brush(QPalette::Dark), 1., Qt::SolidLine,
+                                 Qt::RoundCap, Qt::RoundJoin));
+            painter->setBrush(segment->palette.brush(QPalette::Button));
+            painter->drawRect(segment->rect.adjusted(0, 0, -1, -1));
+            if (segment->state & QStyle::State_Selected)
+                painter->fillRect(segment->rect.adjusted(1, 1, -1, -1),
+                                  segment->palette.brush(QPalette::Highlight));
+            else if (segment->state & QStyle::State_Sunken)
+                 painter->fillRect(segment->rect.adjusted(1, 1, -1, -1),
+                                   Qt::red);
+            painter->restore();
+        }
     }
 }
 
@@ -114,6 +126,7 @@ static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &co
     QSize ret = contentSize;
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+#ifdef Q_WS_MAC
         if (qobject_cast<QMacStyle *>(widget->style())) {
             ret.rheight() += 10;
             switch (segment->position) {
@@ -131,6 +144,11 @@ static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &co
             }
             if (!segment->icon.isNull())
                 ret.rwidth() += 5;
+        } else
+#endif
+        {
+            ret.rwidth() += 20;
+            ret.rheight() += 10;
         }
     }
     return ret;
@@ -156,8 +174,11 @@ static QRect segmentElementRect(const QStyleOption *option, const QWidget *widge
                 retRect.adjust(+2, 0, -2, 0);
                 break;
             }
-        }
+        } else
 #endif
+        {
+            retRect.adjust(-10, 0, 0, +10);
+        }
     }
     return retRect;
 }
