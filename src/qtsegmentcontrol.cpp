@@ -266,8 +266,12 @@ void QtSegmentControl::setSelectionBehavior(SelectionBehavior behavior)
         return;
     d->selectionBehavior = behavior;
     if (behavior == SelectOne) {
-        // This call will do the right thing.
-        setSegmentSelected(d->lastSelected, true);
+        // Setting a new selection will clear all
+        // the old ones, so just re-select the last
+        // selected item.
+        int saveLastSelection = d->lastSelected;
+        setSegmentSelected(saveLastSelection, false);
+        setSegmentSelected(saveLastSelection, true);
     } else if (behavior == SelectNone) {
         d->lastSelected = -1;
         const int segmentCount = d->segments.count();
