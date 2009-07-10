@@ -1,8 +1,6 @@
-#include <QtGui/QApplication>
 #include <QtGui/QIcon>
 #include <QtGui/QMenu>
 #include <QtGui/QPainter>
-#include <QtGui/QStyle>
 #include <QtGui/QStyleOption>
 #include <QtGui/QMouseEvent>
 #include <QtCore/QDebug>
@@ -11,7 +9,6 @@
 #include "qtsegmentcontrol.h"
 
 #ifdef Q_WS_MAC
-#include <QtGui/QMacStyle>
 #include <Carbon/Carbon.h>
 
 static ThemeDrawState getDrawState(QStyle::State flags)
@@ -100,17 +97,16 @@ public:
     enum StyleOptionVersion { Version = 1 };
 
     enum SegmentPosition { Beginning, Middle, End, OnlyOneSegment };
-    enum SelectedPosition { NotAdjacent = 0x0, NextIsSelected = 0x1, PreviousIsSelected = 0x2 };
-    Q_DECLARE_FLAGS(SelectedPositions, SelectedPosition)
+    enum SelectedPosition { NotAdjacent, NextIsSelected, PreviousIsSelected };
 
     QString text;
     QIcon icon;
     QSize iconSize;
     SegmentPosition position;
-    SelectedPositions selectedPositions;
+    SelectedPosition selectedPosition;
 
     QtStyleOptionSegmentControlSegment()
-       : position(OnlyOneSegment), selectedPositions(NotAdjacent) { }
+       : position(OnlyOneSegment), selectedPosition(NotAdjacent) { }
     QtStyleOptionSegmentControlSegment(const QtStyleOptionSegmentControlSegment &other)
         : QStyleOption(Version, Type) { *this = other; }
 
@@ -122,6 +118,7 @@ protected:
 
 static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
+#ifdef Q_WS_MAC
     // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
@@ -168,6 +165,7 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
         } else
 #endif
         {
+            Q_UNUSED(widget);
             painter->save();
 
             bool selected = (segment->state & QStyle::State_Selected);
@@ -219,46 +217,29 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
             painter->restore();
         }
     }
+#else
+    painter->drawRect(option->rect, QColor(0, 255, 0, 135));
+#endif
 }
 
-static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize, const QWidget *widget)
+static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize)
 {
     QSize ret = contentSize;
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-#ifdef Q_WS_MAC
-        if (qobject_cast<QMacStyle *>(widget->style())) {
-            ret.rheight() += 10;
-            switch (segment->position) {
-            default:
-            case QtStyleOptionSegmentControlSegment::Middle:
-                ret.rwidth() += 20;
-                break;
-            case QtStyleOptionSegmentControlSegment::End:
-                ret.rwidth() += 23;
-                break;
-            case QtStyleOptionSegmentControlSegment::Beginning:
-            case QtStyleOptionSegmentControlSegment::OnlyOneSegment:
-                ret.rwidth() += 24;
-                break;
-            }
-            if (!segment->icon.isNull())
-                ret.rwidth() += 5;
-        } else
-#endif
-        {
-            ret.rwidth() += 20;
-            ret.rheight() += 10;
-        }
+        ret.rwidth() += 20;
+        ret.rheight() += 10;
+        if (!segment->icon.isNull())
+            ret.rwidth() += 5;
     }
     return ret;
 }
 
-static QRect segmentElementRect(const QStyleOption *option, const QWidget *widget)
+static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, QWidget *)
 {
-    QRect retRect = option->rect;
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
+<<<<<<< HEAD:src/qtsegmentcontrol.cpp
 #ifdef Q_WS_MAC
         if (qobject_cast<QMacStyle *>(widget->style())) {
             retRect.adjust(+11, +4, -11, -6);
@@ -279,21 +260,16 @@ static QRect segmentElementRect(const QStyleOption *option, const QWidget *widge
         {
             // retRect.adjust(-10, 0, 0, +10);
         }
+=======
+        painter->drawText(segment->rect, Qt::AlignCenter, segment->text);
+>>>>>>> 33b8207... Add some basic stuff for focus handling:src/qtsegmentcontrol.cpp
     }
-    return retRect;
+
 }
 
-static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, const QWidget *widget)
+static void drawSegmentControlFocusRect(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
-    if (const QtStyleOptionSegmentControlSegment *segment
-            = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-        QPalette palette = segment->palette;
-        bool enabled = segment->state & QStyle::State_Enabled;
-        QRect textRect = segmentElementRect(option, widget);
-        widget->style()->drawItemText(painter, textRect, Qt::AlignCenter, palette,
-                                    enabled, segment->text, QPalette::WindowText);
-    }
-
+    widget->style()->drawPrimitive(QStyle::PE_FocusRect, option, painter, widget);
 }
 
 static void drawSegmentControlSegment(const QStyleOption *option,
@@ -302,6 +278,7 @@ static void drawSegmentControlSegment(const QStyleOption *option,
     drawSegmentControlSegmentSegment(option, painter, widget);
     drawSegmentControlSegmentLabel(option, painter, widget);
 }
+
 
 struct SegmentInfo {
     SegmentInfo() : menu(0), selected(false), enabled(true) {}
@@ -319,12 +296,11 @@ struct SegmentInfo {
 class QtSegmentControlPrivate {
 public:
     QtSegmentControlPrivate(QtSegmentControl *myQ)
-        : q(myQ), lastSelected(-1), layoutDirty(true), pressedIndex(-1), wasPressed(-1) {};
+        : q(myQ), lastSelected(-1), layoutDirty(true), pressedIndex(-1), wasPressed(-1), focusIndex(-1) {};
     ~QtSegmentControlPrivate() {};
 
     void layoutSegments();
     void postUpdate(int index = -1, bool geoToo = false);
-    QtStyleOptionSegmentControlSegment::SegmentPosition segmentPositionForIndex(int i);
 
     QtSegmentControl *q;
     QtSegmentControl::SelectionBehavior selectionBehavior;
@@ -334,19 +310,9 @@ public:
     bool layoutDirty;
     int pressedIndex;
     int wasPressed;
+    int focusIndex;
     inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
 };
-
-QtStyleOptionSegmentControlSegment::SegmentPosition QtSegmentControlPrivate::segmentPositionForIndex(int segment)
-{
-    if (segments.count() <= 1)
-        return QtStyleOptionSegmentControlSegment::OnlyOneSegment;
-    if (segment == 0)
-        return QtStyleOptionSegmentControlSegment::Beginning;
-    if (segment == segments.count() - 1)
-        return QtStyleOptionSegmentControlSegment::End;
-    return QtStyleOptionSegmentControlSegment::Middle;
-}
 
 void QtSegmentControlPrivate::layoutSegments()
 {
@@ -449,12 +415,8 @@ void QtSegmentControl::setSelectionBehavior(SelectionBehavior behavior)
         return;
     d->selectionBehavior = behavior;
     if (behavior == SelectOne) {
-        // Setting a new selection will clear all
-        // the old ones, so just re-select the last
-        // selected item.
-        int saveLastSelection = d->lastSelected;
-        setSegmentSelected(saveLastSelection, false);
-        setSegmentSelected(saveLastSelection, true);
+        // This call will do the right thing.
+        setSegmentSelected(d->lastSelected, true);
     } else if (behavior == SelectNone) {
         d->lastSelected = -1;
         const int segmentCount = d->segments.count();
@@ -574,8 +536,7 @@ QSize QtSegmentControl::segmentSizeHint(int segment) const
     opt.text = segmentInfo.text;
     opt.icon = segmentInfo.icon;
     opt.iconSize = d->iconSize;
-    opt.position = d->segmentPositionForIndex(segment);
-    size = segmentSizeFromContents(&opt, size, this);
+    size = segmentSizeFromContents(&opt, size);
     return size;
 }
 
@@ -600,16 +561,29 @@ int QtSegmentControl::segmentAt(const QPoint &pos) const
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
         QRect rect = segmentRect(i);
-        if (rect.contains(pos) && d->segments.at(i).enabled)
+        if (rect.contains(pos))
             return i;
     }
     return -1;
+}
+
+
+void QtSegmentControl::keyPressEvent(QKeyEvent *event)
+{
+    Q_D(QTabBar);
+    if (event->key() != Qt::Key_Left && event->key() != Qt::Key_Right
+            && event->key() != Qt::Key_Space) {
+        event->ignore();
+        return;
+    }
+    qDebug() << "I got a key event";
 }
 
 void QtSegmentControl::paintEvent(QPaintEvent *)
 {
     d->layoutSegments();
     QPainter p(this);
+    p.fillRect(rect(), Qt::blue);
     QtStyleOptionSegmentControlSegment segmentInfo;
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
@@ -620,11 +594,8 @@ void QtSegmentControl::paintEvent(QPaintEvent *)
 
 void QtSegmentControl::mousePressEvent(QMouseEvent *event)
 {
-    int segmentIndex = segmentAt(event->pos());
-    if (segmentIndex != -1) {
-        d->wasPressed = d->pressedIndex = segmentAt(event->pos());
-        d->postUpdate(d->pressedIndex);
-    }
+    d->wasPressed = d->pressedIndex = segmentAt(event->pos());
+    d->postUpdate(d->pressedIndex);
 }
 
 void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
@@ -642,8 +613,6 @@ void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
 void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
 {
     int index = segmentAt(event->pos());
-    if (index == -1)
-        return;
     // This order of reset is important.
     d->pressedIndex = -1;
     if (index == d->wasPressed && d->selectionBehavior != SelectNone) {
@@ -679,24 +648,33 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
     option->initFrom(this);
     if (segment == d->pressedIndex)
         option->state |= QStyle::State_Sunken;
-    // ### Change to qstyleoption_cast
+    // ## Change to qstyleoption_cast
     if (QtStyleOptionSegmentControlSegment *sgi = static_cast<QtStyleOptionSegmentControlSegment *>(option)) {
         sgi->iconSize = d->iconSize;
         const SegmentInfo &segmentInfo = d->segments[segment];
-        sgi->position = d->segmentPositionForIndex(segment);
-        if (segmentInfo.selected)
-            sgi->state |= QStyle::State_Selected;
-        if (!segmentInfo.enabled) {
-            sgi->state &= ~QStyle::State_Enabled;
-            sgi->palette.setCurrentColorGroup(QPalette::Disabled);
+        if (d->segments.count() == 1) {
+            sgi->position = QtStyleOptionSegmentControlSegment::OnlyOneSegment;
+        } else if (segment == 0) {
+            sgi->position = QtStyleOptionSegmentControlSegment::Beginning;
+        } else if (segment == d->segments.count() - 1) {
+            sgi->position = QtStyleOptionSegmentControlSegment::End;
+        } else {
+            sgi->position = QtStyleOptionSegmentControlSegment::Middle;
         }
 
-        if (d->selectionBehavior != QtSegmentControl::SelectNone) {
-            sgi->selectedPositions = QtStyleOptionSegmentControlSegment::NotAdjacent;
-            if (d->indexOK(segment - 1) && d->segments[segment - 1].selected)
-                sgi->selectedPositions |= QtStyleOptionSegmentControlSegment::PreviousIsSelected;
-            if (d->indexOK(segment + 1) && d->segments[segment + 1].selected)
-                sgi->selectedPositions |= QtStyleOptionSegmentControlSegment::NextIsSelected;
+        if (segment == focusIndex)
+            sgi->state |= QStyle::State_HasFocus;
+
+        if (segmentInfo.selected) {
+            sgi->state |= QStyle::State_Selected;
+        } else {
+            if (d->indexOK(segment - 1) && d->segments[segment - 1].selected) {
+                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::PreviousIsSelected;
+            } else if (d->indexOK(segment + 1) && d->segments[segment + 1].selected) {
+                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NextIsSelected;
+            } else {
+                sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NotAdjacent;
+            }
         }
         sgi->rect = segmentInfo.rect;
         sgi->text = segmentInfo.text;
