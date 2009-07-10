@@ -191,8 +191,6 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
         QPalette palette = segment->palette;
         bool enabled = segment->state & QStyle::State_Enabled;
-        if (!enabled)
-            palette.setCurrentColorGroup(QPalette::Disabled);
         QRect textRect = segmentElementRect(option, widget);
         widget->style()->drawItemText(painter, textRect, Qt::AlignCenter, palette,
                                     enabled, segment->text, QPalette::WindowText);
@@ -590,8 +588,10 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
         sgi->position = d->segmentPositionForIndex(segment);
         if (segmentInfo.selected)
             sgi->state |= QStyle::State_Selected;
-        if (!segmentInfo.enabled)
+        if (!segmentInfo.enabled) {
             sgi->state &= ~QStyle::State_Enabled;
+            sgi->palette.setCurrentColorGroup(QPalette::Disabled);
+        }
 
         if (d->selectionBehavior != QtSegmentControl::SelectNone) {
             sgi->selectedPositions = QtStyleOptionSegmentControlSegment::NotAdjacent;
