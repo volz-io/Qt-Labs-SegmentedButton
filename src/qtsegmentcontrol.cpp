@@ -110,12 +110,14 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
                                  Qt::RoundCap, Qt::RoundJoin));
             painter->setBrush(segment->palette.brush(QPalette::Button));
             painter->drawRect(segment->rect.adjusted(0, 0, -1, -1));
-            if (segment->state & QStyle::State_Selected)
-                painter->fillRect(segment->rect.adjusted(1, 1, -1, -1),
+            if (segment->state & QStyle::State_Selected) {
+               painter->fillRect(segment->rect.adjusted(1, 1, -1, -1),
                                   segment->palette.brush(QPalette::Highlight));
-            else if (segment->state & QStyle::State_Sunken)
-                 painter->fillRect(segment->rect.adjusted(1, 1, -1, -1),
-                                   Qt::red);
+            } else if (segment->state & QStyle::State_Sunken) {
+                QBrush sunkenBrush(segment->palette.dark());
+                sunkenBrush.setStyle(Qt::Dense4Pattern);
+                painter->fillRect(segment->rect.adjusted(1, 1, -1, -1), sunkenBrush);
+            }
             painter->restore();
         }
     }
