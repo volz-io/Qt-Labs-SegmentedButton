@@ -30,7 +30,67 @@ static ThemeDrawState getDrawState(QStyle::State flags)
     return tds;
 }
 
+#else
+
+static void drawBorderPixmap(const QPixmap &pixmap, QPainter *painter, const QRect &rect,
+                     int left, int top, int right,
+                     int bottom)
+{
+    QSize size = pixmap.size();
+    //painter->setRenderHint(QPainter::SmoothPixmapTransform);
+
+    //top
+    if (top > 0) {
+        painter->drawPixmap(QRect(rect.left() + left, rect.top(), rect.width() -right - left, top), pixmap,
+                            QRect(left, 0, size.width() -right - left, top));
+
+        //top-left
+        if(left > 0)
+            painter->drawPixmap(QRect(rect.left(), rect.top(), left, top), pixmap,
+                                QRect(0, 0, left, top));
+
+        //top-right
+        if (right > 0)
+            painter->drawPixmap(QRect(rect.left() + rect.width() - right, rect.top(), right, top), pixmap,
+                                QRect(size.width() - right, 0, right, top));
+    }
+
+    //left
+    if (left > 0)
+        painter->drawPixmap(QRect(rect.left(), rect.top()+top, left, rect.height() - top - bottom), pixmap,
+                            QRect(0, top, left, size.height() - bottom - top));
+
+    //center
+    painter->drawPixmap(QRect(rect.left() + left, rect.top()+top, rect.width() -right - left,
+                             rect.height() - bottom - top), pixmap,
+                       QRect(left, top, size.width() -right -left,
+                             size.height() - bottom - top));
+    //right
+    if (right > 0)
+        painter->drawPixmap(QRect(rect.left() +rect.width() - right, rect.top()+top, right, rect.height() - top - bottom), pixmap,
+                            QRect(size.width() - right, top, right, size.height() - bottom - top));
+
+    //bottom
+    if (bottom > 0) {
+        painter->drawPixmap(QRect(rect.left() +left, rect.top() + rect.height() - bottom,
+                                 rect.width() - right - left, bottom), pixmap,
+                            QRect(left, size.height() - bottom,
+                                 size.width() - right - left, bottom));
+        //bottom-left
+        if (left > 0)
+            painter->drawPixmap(QRect(rect.left(), rect.top() + rect.height() - bottom, left, bottom), pixmap,
+                                QRect(0, size.height() - bottom, left, bottom));
+
+        //bottom-right
+        if (right > 0)
+            painter->drawPixmap(QRect(rect.left() + rect.width() - right, rect.top() + rect.height() - bottom, right, bottom), pixmap,
+                                QRect(size.width() - right, size.height() - bottom, right, bottom));
+
+    }
+}
+
 #endif
+
 
 class QtStyleOptionSegmentControlSegment : public QStyleOption
 {
@@ -56,6 +116,8 @@ public:
 protected:
     QtStyleOptionSegmentControlSegment(int version);
 };
+
+
 
 static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
@@ -106,18 +168,38 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
 #endif
         {
             painter->save();
-            painter->setPen(QPen(segment->palette.brush(QPalette::Dark), 1., Qt::SolidLine,
-                                 Qt::RoundCap, Qt::RoundJoin));
-            painter->setBrush(segment->palette.brush(QPalette::Button));
-            painter->drawRect(segment->rect.adjusted(0, 0, -1, -1));
-            if (segment->state & QStyle::State_Selected) {
-               painter->fillRect(segment->rect.adjusted(1, 1, -1, -1),
-                                  segment->palette.brush(QPalette::Highlight));
-            } else if (segment->state & QStyle::State_Sunken) {
-                QBrush sunkenBrush(segment->palette.dark());
-                sunkenBrush.setStyle(Qt::Dense4Pattern);
-                painter->fillRect(segment->rect.adjusted(1, 1, -1, -1), sunkenBrush);
+
+            bool selected = (segment->state & QStyle::State_Selected);
+
+            QSize segmentSize = widget->rect().size();
+            QPixmap pm(segmentSize);
+            pm.fill(Qt::transparent);
+            QPainter pmPainter(&pm);
+            QStyleOption btnOpt = *option;
+            btnOpt.rect = QRect(QPoint(0, 0), segmentSize);;
+            if (selected)
+                btnOpt.state |= QStyle::State_Sunken;
+            else
+                btnOpt.state |= QStyle::State_Raised;
+
+            widget->style()->drawPrimitive(QStyle::PE_PanelButtonCommand, &btnOpt, &pmPainter, widget);
+            pmPainter.end();
+
+            switch (segment->position) {
+            case QtStyleOptionSegmentControlSegment::Beginning:
+                painter->setClipRect(option->rect);
+                break;
+            case QtStyleOptionSegmentControlSegment::Middle:
+                painter->setClipRect(option->rect);
+                break;
+            case QStyleOptionTab::End:
+                painter->setClipRect(option->rect);
+                break;
+            case QStyleOptionTab::OnlyOneTab:
+                painter->setClipRect(option->rect);
+                break;
             }
+            painter->drawPixmap(0, 0, pm);
             painter->restore();
         }
     }
