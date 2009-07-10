@@ -118,7 +118,6 @@ protected:
 
 static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
-#ifdef Q_WS_MAC
     // ### Change to qstyleoption_cast!
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
@@ -217,9 +216,6 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
             painter->restore();
         }
     }
-#else
-    painter->drawRect(option->rect, QColor(0, 255, 0, 135));
-#endif
 }
 
 static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &contentSize)
@@ -239,7 +235,6 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
 {
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
-<<<<<<< HEAD:src/qtsegmentcontrol.cpp
 #ifdef Q_WS_MAC
         if (qobject_cast<QMacStyle *>(widget->style())) {
             retRect.adjust(+11, +4, -11, -6);
@@ -260,16 +255,14 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
         {
             // retRect.adjust(-10, 0, 0, +10);
         }
-=======
         painter->drawText(segment->rect, Qt::AlignCenter, segment->text);
->>>>>>> 33b8207... Add some basic stuff for focus handling:src/qtsegmentcontrol.cpp
     }
 
 }
 
 static void drawSegmentControlFocusRect(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
-    widget->style()->drawPrimitive(QStyle::PE_FocusRect, option, painter, widget);
+    widget->style()->drawPrimitive(QStyle::PE_FrameFocusRect, option, painter, widget);
 }
 
 static void drawSegmentControlSegment(const QStyleOption *option,
@@ -570,7 +563,6 @@ int QtSegmentControl::segmentAt(const QPoint &pos) const
 
 void QtSegmentControl::keyPressEvent(QKeyEvent *event)
 {
-    Q_D(QTabBar);
     if (event->key() != Qt::Key_Left && event->key() != Qt::Key_Right
             && event->key() != Qt::Key_Space) {
         event->ignore();
@@ -626,11 +618,6 @@ void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
     d->wasPressed = -1;
 }
 
-void QtSegmentControl::keyPressEvent(QKeyEvent *event)
-{
-    QWidget::keyPressEvent(event);
-}
-
 void QtSegmentControl::keyReleaseEvent(QKeyEvent *event)
 {
     QWidget::keyReleaseEvent(event);
@@ -662,7 +649,7 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
             sgi->position = QtStyleOptionSegmentControlSegment::Middle;
         }
 
-        if (segment == focusIndex)
+        if (segment == d->focusIndex)
             sgi->state |= QStyle::State_HasFocus;
 
         if (segmentInfo.selected) {
