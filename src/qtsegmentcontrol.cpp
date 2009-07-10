@@ -6,6 +6,7 @@
 #include <QtGui/QStyleOption>
 #include <QtGui/QMouseEvent>
 #include <QtCore/QDebug>
+#include <QtGui/QPixmapCache>
 
 #include "qtsegmentcontrol.h"
 
@@ -171,35 +172,50 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
 
             bool selected = (segment->state & QStyle::State_Selected);
 
+            QPixmap pm;
+
             QSize segmentSize = widget->rect().size();
-            QPixmap pm(segmentSize);
-            pm.fill(Qt::transparent);
-            QPainter pmPainter(&pm);
-            QStyleOption btnOpt = *option;
-            btnOpt.rect = QRect(QPoint(0, 0), segmentSize);;
-            if (selected)
-                btnOpt.state |= QStyle::State_Sunken;
-            else
-                btnOpt.state |= QStyle::State_Raised;
+            QString key = QString("qt_segment %0 %1 %2").arg(option->state).arg(segmentSize.width()).arg(segmentSize.height());
+            if (!QPixmapCache::find(key, pm)) {
+                pm = QPixmap(segmentSize);
+                pm.fill(Qt::transparent);
+                QPainter pmPainter(&pm);
+                QStyleOptionButton btnOpt;
+                btnOpt.QStyleOption::operator =(*option);
+                btnOpt.rect = QRect(QPoint(0, 0), segmentSize);;
+                if (selected)
+                    btnOpt.state |= QStyle::State_Sunken;
+                else
+                    btnOpt.state |= QStyle::State_Raised;
 
-            widget->style()->drawPrimitive(QStyle::PE_PanelButtonCommand, &btnOpt, &pmPainter, widget);
-            pmPainter.end();
-
+                widget->style()->drawPrimitive(QStyle::PE_PanelButtonCommand, &btnOpt, &pmPainter, widget);
+                pmPainter.end();
+                QPixmapCache::insert(key, pm);
+            }
+            int margin = widget->style()->pixelMetric(QStyle::PM_DefaultFrameWidth, option, widget);
             switch (segment->position) {
             case QtStyleOptionSegmentControlSegment::Beginning:
                 painter->setClipRect(option->rect);
+                painter->drawPixmap(0, 0, pm);
+                painter->setOpacity(0.6);
+                painter->setPen(option->palette.dark().color());
+                painter->drawLine(option->rect.topRight() + QPoint(-1, margin), option->rect.bottomRight() + QPoint(-1, -margin));
                 break;
             case QtStyleOptionSegmentControlSegment::Middle:
                 painter->setClipRect(option->rect);
+                painter->drawPixmap(0, 0, pm);
+                painter->setPen(option->palette.dark().color());
+                painter->drawLine(option->rect.topRight() + QPoint(-1, margin), option->rect.bottomRight() + QPoint(-1, -margin));
                 break;
             case QStyleOptionTab::End:
                 painter->setClipRect(option->rect);
+                painter->drawPixmap(0, 0, pm);
                 break;
             case QStyleOptionTab::OnlyOneTab:
                 painter->setClipRect(option->rect);
+                painter->drawPixmap(0, 0, pm);
                 break;
             }
-            painter->drawPixmap(0, 0, pm);
             painter->restore();
         }
     }
@@ -261,7 +277,7 @@ static QRect segmentElementRect(const QStyleOption *option, const QWidget *widge
         } else
 #endif
         {
-            retRect.adjust(-10, 0, 0, +10);
+            // retRect.adjust(-10, 0, 0, +10);
         }
     }
     return retRect;
