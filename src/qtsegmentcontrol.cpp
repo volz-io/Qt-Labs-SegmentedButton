@@ -575,7 +575,6 @@ void QtSegmentControl::paintEvent(QPaintEvent *)
 {
     d->layoutSegments();
     QPainter p(this);
-    p.fillRect(rect(), Qt::blue);
     QtStyleOptionSegmentControlSegment segmentInfo;
     const int segmentCount = d->segments.count();
     for (int i = 0; i < segmentCount; ++i) {
