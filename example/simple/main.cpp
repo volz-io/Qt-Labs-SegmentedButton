@@ -34,6 +34,7 @@ public:
         button->setChecked(false);
         connect(button, SIGNAL(toggled(bool)), SLOT(updateBart(bool)));
 
+
         QVBoxLayout *vboxlayout = new QVBoxLayout();
         vboxlayout->addWidget(controller);
         vboxlayout->addWidget(segmentControl);

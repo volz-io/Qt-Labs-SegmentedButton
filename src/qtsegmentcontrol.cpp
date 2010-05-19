@@ -111,16 +111,17 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
 
             QPixmap pm;
 
-            QSize segmentSize = widget->rect().size();
-            QString key = QString("qt_segment %0 %1 %2").arg(option->state).arg(segmentSize.width()).arg(segmentSize.height());
+            QSize buttonSize = widget->rect().size();
+            QString key = QString("qt_segment %0 %1 %2").arg(option->state).arg(buttonSize.width()).arg(buttonSize.height());
 
             if (!QPixmapCache::find(key, pm)) {
-                pm = QPixmap(segmentSize);
+                pm = QPixmap(buttonSize);
                 pm.fill(Qt::transparent);
                 QPainter pmPainter(&pm);
                 QStyleOptionButton btnOpt;
                 btnOpt.QStyleOption::operator =(*option);
-                btnOpt.rect = QRect(QPoint(0, 0), segmentSize);;
+                btnOpt.state &= ~QStyle::State_HasFocus;
+                btnOpt.rect = QRect(QPoint(0, 0), buttonSize);;
                 btnOpt.state = option->state;
 
                 if (selected)
@@ -173,7 +174,7 @@ static QSize segmentSizeFromContents(const QStyleOption *option, const QSize &co
     return ret;
 }
 
-static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, QWidget *)
+static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
     if (const QtStyleOptionSegmentControlSegment *segment
             = static_cast<const QtStyleOptionSegmentControlSegment *>(option)) {
@@ -192,20 +193,21 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
                 retRect.adjust(+2, 0, -2, 0);
                 break;
             }
-        } else
-#endif
-        {
-            // retRect.adjust(-10, 0, 0, +10);
         }
-        painter->drawText(segment->rect, Qt::AlignCenter, segment->text);
+#endif
+        QStyleOptionButton button;
+        button.QStyleOption::operator=(*option);
+        button.text = segment->text;
+        widget->style()->drawControl(QStyle::CE_PushButtonLabel, &button, painter, widget);
     }
 
 }
 
 static void drawSegmentControlFocusRect(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
-    QStyleOptionButton focusOpt;
+    QStyleOptionFocusRect focusOpt;
     focusOpt.QStyleOption::operator =(*option);
+    focusOpt.rect.adjust(2, 2, -2, -2); //use subcontrolrect for this
     widget->style()->drawPrimitive(QStyle::PE_FrameFocusRect, &focusOpt, painter, widget);
 }
 
@@ -281,7 +283,7 @@ QtSegmentControl::QtSegmentControl(QWidget *parent)
     : QWidget(parent), d(new QtSegmentControlPrivate(this))
 {
     setFocusPolicy(Qt::TabFocus);
-    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     setAttribute(Qt::WA_WState_OwnSizePolicy, false);
 }
 
