@@ -27,66 +27,6 @@ static ThemeDrawState getDrawState(QStyle::State flags)
     }
     return tds;
 }
-
-#else
-
-static void drawBorderPixmap(const QPixmap &pixmap, QPainter *painter, const QRect &rect,
-                     int left, int top, int right,
-                     int bottom)
-{
-    QSize size = pixmap.size();
-    //painter->setRenderHint(QPainter::SmoothPixmapTransform);
-
-    //top
-    if (top > 0) {
-        painter->drawPixmap(QRect(rect.left() + left, rect.top(), rect.width() -right - left, top), pixmap,
-                            QRect(left, 0, size.width() -right - left, top));
-
-        //top-left
-        if(left > 0)
-            painter->drawPixmap(QRect(rect.left(), rect.top(), left, top), pixmap,
-                                QRect(0, 0, left, top));
-
-        //top-right
-        if (right > 0)
-            painter->drawPixmap(QRect(rect.left() + rect.width() - right, rect.top(), right, top), pixmap,
-                                QRect(size.width() - right, 0, right, top));
-    }
-
-    //left
-    if (left > 0)
-        painter->drawPixmap(QRect(rect.left(), rect.top()+top, left, rect.height() - top - bottom), pixmap,
-                            QRect(0, top, left, size.height() - bottom - top));
-
-    //center
-    painter->drawPixmap(QRect(rect.left() + left, rect.top()+top, rect.width() -right - left,
-                             rect.height() - bottom - top), pixmap,
-                       QRect(left, top, size.width() -right -left,
-                             size.height() - bottom - top));
-    //right
-    if (right > 0)
-        painter->drawPixmap(QRect(rect.left() +rect.width() - right, rect.top()+top, right, rect.height() - top - bottom), pixmap,
-                            QRect(size.width() - right, top, right, size.height() - bottom - top));
-
-    //bottom
-    if (bottom > 0) {
-        painter->drawPixmap(QRect(rect.left() +left, rect.top() + rect.height() - bottom,
-                                 rect.width() - right - left, bottom), pixmap,
-                            QRect(left, size.height() - bottom,
-                                 size.width() - right - left, bottom));
-        //bottom-left
-        if (left > 0)
-            painter->drawPixmap(QRect(rect.left(), rect.top() + rect.height() - bottom, left, bottom), pixmap,
-                                QRect(0, size.height() - bottom, left, bottom));
-
-        //bottom-right
-        if (right > 0)
-            painter->drawPixmap(QRect(rect.left() + rect.width() - right, rect.top() + rect.height() - bottom, right, bottom), pixmap,
-                                QRect(size.width() - right, size.height() - bottom, right, bottom));
-
-    }
-}
-
 #endif
 
 
@@ -173,6 +113,7 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
 
             QSize segmentSize = widget->rect().size();
             QString key = QString("qt_segment %0 %1 %2").arg(option->state).arg(segmentSize.width()).arg(segmentSize.height());
+
             if (!QPixmapCache::find(key, pm)) {
                 pm = QPixmap(segmentSize);
                 pm.fill(Qt::transparent);
@@ -180,11 +121,12 @@ static void drawSegmentControlSegmentSegment(const QStyleOption *option, QPainte
                 QStyleOptionButton btnOpt;
                 btnOpt.QStyleOption::operator =(*option);
                 btnOpt.rect = QRect(QPoint(0, 0), segmentSize);;
+                btnOpt.state = option->state;
+
                 if (selected)
                     btnOpt.state |= QStyle::State_Sunken;
                 else
                     btnOpt.state |= QStyle::State_Raised;
-
                 widget->style()->drawPrimitive(QStyle::PE_PanelButtonCommand, &btnOpt, &pmPainter, widget);
                 pmPainter.end();
                 QPixmapCache::insert(key, pm);
@@ -262,7 +204,9 @@ static void drawSegmentControlSegmentLabel(const QStyleOption *option, QPainter 
 
 static void drawSegmentControlFocusRect(const QStyleOption *option, QPainter *painter, QWidget *widget)
 {
-    widget->style()->drawPrimitive(QStyle::PE_FrameFocusRect, option, painter, widget);
+    QStyleOptionButton focusOpt;
+    focusOpt.QStyleOption::operator =(*option);
+    widget->style()->drawPrimitive(QStyle::PE_FrameFocusRect, &focusOpt, painter, widget);
 }
 
 static void drawSegmentControlSegment(const QStyleOption *option,
@@ -270,6 +214,8 @@ static void drawSegmentControlSegment(const QStyleOption *option,
 {
     drawSegmentControlSegmentSegment(option, painter, widget);
     drawSegmentControlSegmentLabel(option, painter, widget);
+    if (option->state & QStyle::State_HasFocus)
+        drawSegmentControlFocusRect(option, painter, widget);
 }
 
 
@@ -304,7 +250,7 @@ public:
     int pressedIndex;
     int wasPressed;
     int focusIndex;
-    inline bool indexOK(int index) { return index >= 0 && index < segments.count(); }
+    inline bool validIndex(int index) { return index >= 0 && index < segments.count(); }
 };
 
 void QtSegmentControlPrivate::layoutSegments()
@@ -320,7 +266,6 @@ void QtSegmentControlPrivate::layoutSegments()
         rect.setLeft(rect.left() + ssh.width());
     }
     layoutDirty = false;
-
 }
 
 void QtSegmentControlPrivate::postUpdate(int /*index*/, bool geoToo)
@@ -353,11 +298,21 @@ int QtSegmentControl::count() const
 void QtSegmentControl::setCount(int newCount)
 {
     d->segments.resize(newCount);
+
+    // If current index is not valid, make it the first valid index
+    if (!d->validIndex(d->focusIndex)) {
+        for (int i = 0; i < newCount; ++i) {
+            if (d->validIndex(i) && d->segments[i].enabled) {
+                d->focusIndex = i;
+                break;
+            }
+        }
+    }
 }
 
 bool QtSegmentControl::isSegmentSelected(int index) const
 {
-    if (!d->indexOK(index))
+    if (!d->validIndex(index))
         return false;
 
     return d->segments.at(index).selected;
@@ -370,7 +325,7 @@ int QtSegmentControl::selectedSegment() const
 
 void QtSegmentControl::setSegmentSelected(int index, bool selected)
 {
-    if (!d->indexOK(index))
+    if (!d->validIndex(index))
         return;
 
     if (d->segments[index].selected != selected) {
@@ -393,7 +348,7 @@ void QtSegmentControl::setSegmentSelected(int index, bool selected)
 
 void QtSegmentControl::setSegmentEnabled(int index, bool enabled)
 {
-    if (!d->indexOK(index))
+    if (!d->validIndex(index))
         return;
 
     if (d->segments[index].enabled != enabled) {
@@ -427,7 +382,7 @@ QtSegmentControl::SelectionBehavior QtSegmentControl::selectionBehavior() const
 
 void QtSegmentControl::setSegmentText(int index, const QString &text)
 {
-    if (!d->indexOK(index))
+    if (!d->validIndex(index))
         return;
 
     if (d->segments[index].text != text) {
@@ -436,14 +391,21 @@ void QtSegmentControl::setSegmentText(int index, const QString &text)
     }
 }
 
+bool QtSegmentControl::segmentEnabled(int index) const
+{
+    if (d->validIndex(index))
+        return d->segments[index].enabled;
+    return false;
+}
+
 QString QtSegmentControl::segmentText(int index) const
 {
-    return d->indexOK(index) ? d->segments.at(index).text : QString();
+    return d->validIndex(index) ? d->segments.at(index).text : QString();
 }
 
 void QtSegmentControl::setSegmentIcon(int index, const QIcon &icon)
 {
-    if (!d->indexOK(index))
+    if (!d->validIndex(index))
         return;
 
     d->segments[index].icon = icon;
@@ -452,7 +414,7 @@ void QtSegmentControl::setSegmentIcon(int index, const QIcon &icon)
 
 QIcon QtSegmentControl::segmentIcon(int index) const
 {
-    return d->indexOK(index) ? d->segments.at(index).icon : QIcon();
+    return d->validIndex(index) ? d->segments.at(index).icon : QIcon();
 }
 
 void QtSegmentControl::setIconSize(const QSize &size)
@@ -471,7 +433,7 @@ QSize QtSegmentControl::iconSize() const
 
 void QtSegmentControl::setSegmentMenu(int index, QMenu *menu)
 {
-    if (!d->indexOK(index))
+    if (!d->validIndex(index))
         return;
 
     if (menu != d->segments[index].menu) {
@@ -484,12 +446,12 @@ void QtSegmentControl::setSegmentMenu(int index, QMenu *menu)
 
 QMenu *QtSegmentControl::segmentMenu(int index) const
 {
-    return d->indexOK(index) ? d->segments.at(index).menu : 0;
+    return d->validIndex(index) ? d->segments.at(index).menu : 0;
 }
 
 void QtSegmentControl::setSegmentToolTip(int segment, const QString &tipText)
 {
-    if (!d->indexOK(segment))
+    if (!d->validIndex(segment))
         return;
 
     d->segments[segment].toolTip = tipText;
@@ -497,12 +459,12 @@ void QtSegmentControl::setSegmentToolTip(int segment, const QString &tipText)
 
 QString QtSegmentControl::segmentToolTip(int segment) const
 {
-    return d->indexOK(segment) ? d->segments.at(segment).toolTip : QString();
+    return d->validIndex(segment) ? d->segments.at(segment).toolTip : QString();
 }
 
 void QtSegmentControl::setSegmentWhatsThis(int segment, const QString &whatsThisText)
 {
-    if (!d->indexOK(segment))
+    if (!d->validIndex(segment))
         return;
 
     d->segments[segment].whatsThis = whatsThisText;
@@ -510,7 +472,7 @@ void QtSegmentControl::setSegmentWhatsThis(int segment, const QString &whatsThis
 
 QString QtSegmentControl::segmentWhatsThis(int segment) const
 {
-    return d->indexOK(segment) ? d->segments.at(segment).whatsThis : QString();
+    return d->validIndex(segment) ? d->segments.at(segment).whatsThis : QString();
 }
 
 QSize QtSegmentControl::segmentSizeHint(int segment) const
@@ -546,7 +508,7 @@ QSize QtSegmentControl::sizeHint() const
 
 QRect QtSegmentControl::segmentRect(int index) const
 {
-    return d->indexOK(index) ? d->segments[index].rect : QRect();
+    return d->validIndex(index) ? d->segments[index].rect : QRect();
 }
 
 int QtSegmentControl::segmentAt(const QPoint &pos) const
@@ -560,16 +522,46 @@ int QtSegmentControl::segmentAt(const QPoint &pos) const
     return -1;
 }
 
-
 void QtSegmentControl::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() != Qt::Key_Left && event->key() != Qt::Key_Right
-            && event->key() != Qt::Key_Space) {
+        && event->key() != Qt::Key_Space) {
         event->ignore();
         return;
     }
-    qDebug() << "I got a key event";
+
+    if (event->key() == Qt::Key_Space) {
+        d->pressedIndex = d->focusIndex = d->focusIndex;
+        d->postUpdate(d->wasPressed);
+    } else {
+        int dx = event->key() == (isRightToLeft() ? Qt::Key_Right : Qt::Key_Left) ? -1 : 1;
+        for (int index = d->focusIndex + dx; d->validIndex(index); index += dx) {
+            if (d->segments[index].enabled) {
+                d->focusIndex = index;
+                update();
+                break;
+            }
+        }
+    }
 }
+
+void QtSegmentControl::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Space) {
+        int index = d->pressedIndex;
+        if (d->selectionBehavior != SelectNone) {
+            if (d->selectionBehavior == SelectAll) {
+                setSegmentSelected(index, !d->segments[index].selected);
+            } else {
+                setSegmentSelected(index, true);
+            }
+        }
+        d->postUpdate(index);
+        d->pressedIndex = -1;
+    }
+    QWidget::keyReleaseEvent(event);
+}
+
 
 void QtSegmentControl::paintEvent(QPaintEvent *)
 {
@@ -585,8 +577,11 @@ void QtSegmentControl::paintEvent(QPaintEvent *)
 
 void QtSegmentControl::mousePressEvent(QMouseEvent *event)
 {
-    d->wasPressed = d->pressedIndex = segmentAt(event->pos());
-    d->postUpdate(d->pressedIndex);
+    int index = segmentAt(event->pos());
+    if (segmentEnabled(index)) {
+        d->wasPressed = d->focusIndex = d->pressedIndex = segmentAt(event->pos());
+        d->postUpdate(d->pressedIndex);
+    }
 }
 
 void QtSegmentControl::mouseMoveEvent(QMouseEvent *event)
@@ -617,11 +612,6 @@ void QtSegmentControl::mouseReleaseEvent(QMouseEvent *event)
     d->wasPressed = -1;
 }
 
-void QtSegmentControl::keyReleaseEvent(QKeyEvent *event)
-{
-    QWidget::keyReleaseEvent(event);
-}
-
 bool QtSegmentControl::event(QEvent *event)
 {
     return QWidget::event(event);
@@ -629,11 +619,12 @@ bool QtSegmentControl::event(QEvent *event)
 
 void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
 {
-    if (!option || !d->indexOK(segment))
+    if (!option || !d->validIndex(segment))
         return;
     option->initFrom(this);
     if (segment == d->pressedIndex)
         option->state |= QStyle::State_Sunken;
+
     // ## Change to qstyleoption_cast
     if (QtStyleOptionSegmentControlSegment *sgi = static_cast<QtStyleOptionSegmentControlSegment *>(option)) {
         sgi->iconSize = d->iconSize;
@@ -648,15 +639,22 @@ void QtSegmentControl::initStyleOption(int segment, QStyleOption *option) const
             sgi->position = QtStyleOptionSegmentControlSegment::Middle;
         }
 
-        if (segment == d->focusIndex)
+        if (hasFocus() && segment == d->focusIndex)
             sgi->state |= QStyle::State_HasFocus;
+        else
+            sgi->state &= ~QStyle::State_HasFocus;
+
+        if (segmentInfo.enabled && isEnabled())
+            sgi->state |= QStyle::State_Enabled;
+        else
+            sgi->state &= ~QStyle::State_Enabled;
 
         if (segmentInfo.selected) {
             sgi->state |= QStyle::State_Selected;
         } else {
-            if (d->indexOK(segment - 1) && d->segments[segment - 1].selected) {
+            if (d->validIndex(segment - 1) && d->segments[segment - 1].selected) {
                 sgi->selectedPosition = QtStyleOptionSegmentControlSegment::PreviousIsSelected;
-            } else if (d->indexOK(segment + 1) && d->segments[segment + 1].selected) {
+            } else if (d->validIndex(segment + 1) && d->segments[segment + 1].selected) {
                 sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NextIsSelected;
             } else {
                 sgi->selectedPosition = QtStyleOptionSegmentControlSegment::NotAdjacent;

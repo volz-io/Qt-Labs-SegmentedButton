@@ -17,7 +17,9 @@ public:
         controller->setSegmentText(3, tr("Permanently Disabled"));
         controller->setSegmentEnabled(3, false);
         controller->setSelectionBehavior(QtSegmentControl::SelectOne);
+
         connect(controller, SIGNAL(segmentSelected(int)), this, SLOT(updateBehavior(int)));
+
         segmentControl = new QtSegmentControl();
         segmentControl->setCount(5);
         segmentControl->setSegmentText(0, "Homer");
@@ -25,12 +27,12 @@ public:
         segmentControl->setSegmentText(2, "Bart");
         segmentControl->setSegmentText(3, "Lisa");
         segmentControl->setSegmentText(4, "Maggie");
+        controller->setSelectionBehavior(QtSegmentControl::SelectOne);
         controller->setSegmentSelected(0, true);
 
         QCheckBox *button = new QCheckBox(tr("Disable Bart"));
         button->setChecked(false);
         connect(button, SIGNAL(toggled(bool)), SLOT(updateBart(bool)));
-
 
         QVBoxLayout *vboxlayout = new QVBoxLayout();
         vboxlayout->addWidget(controller);
