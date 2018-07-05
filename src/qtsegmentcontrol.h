@@ -2,7 +2,7 @@
    A whole bunch of stuff here.
 */
 
-#include <QtGui/QWidget>
+#include <QtWidgets/QWidget>
 class QMenu;
 class QStyleOption;
 

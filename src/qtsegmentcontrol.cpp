@@ -1,7 +1,7 @@
 #include <QtGui/QIcon>
-#include <QtGui/QMenu>
+#include <QtWidgets/QMenu>
 #include <QtGui/QPainter>
-#include <QtGui/QStyleOption>
+#include <QtWidgets/QStyleOption>
 #include <QtGui/QMouseEvent>
 #include <QtCore/QDebug>
 #include <QtGui/QPixmapCache>
